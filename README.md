@@ -11,9 +11,9 @@ This repository will cover 4-5 different functions, each of which represent a ch
         1.2.1. V run as MC with all variables defined by probability distributions, t may have a skew that the others do not.  
   
 ## 2. function Gate_Series
-  2.1. for i = 1 to n, Vi = f(USLi, Gi, ti)
-    2.1.1. USL may be one value for all i or may be f(i)
-    2.1.2. in later steps we may try to tie this to a mass balance based on the flow from the lateral head and end of channel            spill.
+  2.1. for i = 1 to n, Vi = f(USLi, Gi, ti)  
+  2.1.1. USL may be one value for all i or may be f(i)  
+  2.1.2. in later steps we may try to tie this to a mass balance based on the flow from the lateral head and end of channel spill.
 
 ## 3. function Lateral
   3.1. Qj = fj
