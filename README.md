@@ -4,11 +4,17 @@ This repository will cover 4-5 different functions, each of which represent a ch
 
 ## 1. function Gate  
     1.1. Q = f(USL, G)  
-        1.1.1. Q run as a Monte Carlo (MC) with USL and G probability distribution.  
-        1.1.2. There is an accuracy to the equation itself which comes from the manufacturer.  
-        1.1.3. The manufacturer's accuracy may be a distribution if they are willing to share their results with us, but may also be just a +/- X% that we need to decide to turn into a distribution.  
+    
+    1.1.1. Q run as a Monte Carlo (MC) with USL and G probability distribution.  
+    
+    1.1.2. There is an accuracy to the equation itself which comes from the manufacturer.  
+    
+    1.1.3. The manufacturer's accuracy may be a distribution if they are willing to share their results with us, but may also be just a +/- X% that we need to decide to turn into a distribution.  
+    
     1.2. V = f(USL, G, t)  
-        1.2.1. V run as MC with all variables defined by probability distributions, t may have a skew that the others do not.  
+    
+    1.2.1. V run as MC with all variables defined by probability distributions, t may have a skew that the others do not.  
+  
   
 ## 2. function Gate_Series
   2.1. for i = 1 to n, Vi = f(USLi, Gi, ti)  
