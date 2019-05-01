@@ -3,8 +3,8 @@
 This repository will cover 4-5 different functions, each of which represent a chapter or major element to the chapter of the dissertation. The functions are listed below.
 
 ## 1. function Gate  
-  1.1. Q = f(USL, G)  
-    1.1.1. Q run as a Monte Carlo (MC) with USL and G probability distribution.  
+    1.1. Q = f(USL, G)  
+        1.1.1. Q run as a Monte Carlo (MC) with USL and G probability distribution.  
     1.1.2. There is an accuracy to the equation itself which comes from the manufacturer.  
     1.1.3. The manufacturer's accuracy may be a distribution if they are willing to share their results with us, but may also           be just a +/- X% that we need to decide to turn into a distribution.
   1.2. V = f(USL, G, t)
