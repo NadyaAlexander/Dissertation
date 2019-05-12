@@ -1,0 +1,191 @@
+---
+title: "gate_regression"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# 1.0 Data 
+## 1.1 Data Gathering
+```{r datagathering}
+# put all the flow data from the different type of gates here
+flowdf <- list()
+
+# check.names=FALSE removes leadinging X's from column names
+flowdf[[1]] <- read.csv("inputs/armco_gate36.csv", header = TRUE, check.names = FALSE)
+flowdf[[2]] <- read.csv("inputs/armco_gate36.csv", header = TRUE, check.names = FALSE)
+flowdf[[3]] <- read.csv("inputs/armco_gate36.csv", header = TRUE, check.names = FALSE)
+flowdf[[4]] <- read.csv("inputs/armco_gate36.csv", header = TRUE, check.names = FALSE)
+```
+
+## 1.2 Data Preprocessing
+```{r preprocessing}
+library(reshape2) 
+preprocessing <- function(data){
+  # deleting last two NA rows from stubborn Excel
+  data <- na.omit(data)
+  # reshape the data from wide to long format
+  datalong <- melt(data, id.vars = "H", measure.var = 2:ncol(data), var.name = colnames(data), value.name = 'FLOW', variable.name = "G")
+  datalong$LOGFLOW <- log(datalong$FLOW)
+  datalong$G <- as.numeric(datalong$G)
+  datalong
+}
+
+# now we can easily apply the function we wrote to all elements of the list with lapply
+flowdfl <- lapply(flowdf, preprocessing)
+```
+
+# 2.0 Model Simulations
+models will come in 8 forms, complex to simple.
+data will come in 4 forms, for each gate type. (subject to change)
+Therefore, we will have 8*4=32 models. (subject to change)
+
+```{r simulations}
+library(nls2)
+
+# note these models were only written for one flow dataframe: flowdf[[1]]
+# attempt 1: model form is 
+# Q = (aG^2 + bG + c)*H^(dG^2 + eG + f)
+# log[Q] = log[(aG^2 + bG + c)*H^(dG + eG + f)]
+# log[Q] = log[(aG^2 + bG + c)] +(dG + eG + f)*log[H]
+modelsim <- nls(LOGFLOW~log(A*G^2+B*G+C)+(D*G^2+E*G+FF)*log(H), data=flowdfl[[1]], start=list(A=0, B=0.5, C=2, D=0, E=0, FF=0.5))
+
+# attempt 2: model form is 
+# Q = (bG + c)*H^(dG^2 + eG + f)
+# log[Q] = log[(bG + c)*H^(dG + eG + f)]
+# log[Q] = log[(bG + c)] +(dG + eG + f)*log[H]
+modelsim <- nls(LOGFLOW~log(B*G+C)+(D*G^2+E*G+FF)*log(H), data=flowdfl[[1]], start=list(B=1, C=1, D=1, E=1, FF=1))
+
+# attempt 3: model form is
+# Q = (aG^2 + bG + c)*H^(eG + f)
+# log[Q] = log[(aG^2 + bG + c)*H^(eG + f)]
+# log[Q] = log[(aG^2 + bG + c)] + (eG + f)*log[H]
+modelsim <- nls(LOGFLOW~log(A*G^2+B*G+C)+(E*G+FF)*log(H), data=flowdfl[[1]], start=list(A=0, B=0.5, C=2.5, E=0, FF=0.5))
+
+# attempt 4: model form is
+# Q = (c)*H^(dG^2 + eG + f)
+# log[Q] = log[(c)*H^(dG^2 + eG + f)]
+# log[Q] = log[(c)] +(dG^2 + eG + f)*log[H]
+modelsim <- nls(LOGFLOW~log(C)+(D*G^2+E*G+FF)*log(H), data=flowdfl[[1]], start=list(C=1, D=1, E=1, FF=1))
+
+# attempt 5: model form is
+# Q = (aG^2 + bG + c)*H^(f)
+# log[Q] = log[(aG^2 + bG + c)*H^(f)]
+# log[Q] = log[(aG^2 + bG + c)] +(f)*log[H]
+modelsim <- nls(LOGFLOW~log(A*G^2+B*G+C)+(FF)*log(H), data=flowdfl[[1]], start=list(A=0, B=0.5, C=2.5, FF=0.5))
+
+# attempt 6: model form is
+# Q = (c)*H^(eG + f)
+# log[Q] = log[(c)*H^(eG + f)]
+# log[Q] = log[(c)] +(eG + f)*log[H]
+modelsim <- nls(LOGFLOW~log(C)+(E*G+FF)*log(H), data=flowdfl[[1]], start=list(C=1, E=1, FF=1))
+
+# attempt 7: model form is
+# Q = (bG + c)*H^(f)
+# log[Q] = log[(bG + c)*H^(f)]
+# log[Q] = log[(bG + c)] +(f)*log[H]
+modelsim <- nls(LOGFLOW~log(B*G+C)+(FF)*log(H), data=flowdfl[[1]], start=list(B=1, C=1, FF=1))
+
+# attempt 8: model form is
+# Q = (G)*H^(f)
+# log[Q] = log[(G)*H^(f)]
+# log[Q] = log[(G)] + (f)*log[H]
+modelsim <- nls(LOGFLOW~log(G)+(FF)*log(H), data=flowdfl[[1]], start=list(FF=1))
+
+# run this to see the optimized parameters in the description
+modelsim
+```
+
+```{r siminputs}
+# check these with Nadya
+
+# model formulas
+formulastring <- list()
+formulastring[[1]] <- "LOGFLOW ~log(A*G^2+B*G+C)+(D*G^2+E*G+FF)*log(H)"
+formulastring[[2]] <- "LOGFLOW ~log(B*G+C)+(D*G^2+E*G+FF)*log(H)"
+formulastring[[3]] <- "LOGFLOW ~log(A*G^2+B*G+C)+(E*G+FF)*log(H)"
+formulastring[[4]] <- "LOGFLOW ~log(C)+(D*G^2+E*G+FF)*log(H)"
+formulastring[[5]] <- "LOGFLOW ~log(A*G^2+B*G+C)+(FF)*log(H)"
+formulastring[[6]] <- "LOGFLOW ~log(C)+(E*G+FF)*log(H)"
+formulastring[[7]] <- "LOGFLOW ~log(B*G+C)+(FF)*log(H)"
+formulastring[[8]] <- "LOGFLOW ~log(G)+(FF)*log(H)"
+
+# term starts:    attempt No.1    2   3    4   5    6   7   8          
+termstart <- data.frame( A=c(0,   NA, 0,   NA, 0,   NA, NA, NA), 
+                         B=c(0.5, 1,  0.5, NA, 0.5, NA, 1,  NA), 
+                         C=c(2,   1,  2.5, 1,  2.5, 1,  1,  NA), 
+                         D=c(0,   1,  NA,  1,  NA,  NA, NA, NA), 
+                         E=c(0,   1,  0,   1,  NA,  1,  NA, NA), 
+                        FF=c(0.5, 1,  0.5, 1,  0.5, 1,  1,  1))
+```
+
+```{r simfunction}
+modelsim <- function(data, formulastring, termstart){
+  nls(as.formula(formulastring), data=data, start=termstart)
+}
+
+# d for the number of flow dataframes
+# m for the number of model forms
+modelfits <- replicate(n=4, expr=list())
+for(d in 1:4){
+  for (m in 1:8){
+    termstartsub <- list(A=termstart[m, 1], B=termstart[m, 2], C=termstart[m, 3], D=termstart[m, 4], E=termstart[m, 5], FF=termstart[m, 6])
+    termstartsub <- termstartsub[!is.na(termstartsub)]
+    modelfits[[d]][[m]] <- modelsim(flowdfl[[d]], formulastring[[m]], termstartsub)
+    # print(paste("d:", d))
+    # print(paste("m:", m))
+  }
+}
+```
+
+# 3.0 Model Stats
+```{r model_stats}
+#!!!!!!!!!!!!!!!! Pick up here next
+modelpred <- list()
+modelstats_b <- list()
+modelstats_r2 <- list()
+for(d in 1:4){
+  for (m in 1:8){
+    # use the fits to predict
+    modelpred[[d]][[m]] <- predict(modelsim, data=flowdfl, type="response")
+    
+    # fit an lm to obs vs. pred
+    lmmod <- lm(modelpred[[d]][[m]]~flowdfl[[d]]$LOGFLOW)
+    
+    # calculate bR2 or bias-corrected R^2
+    # For slope greater than one in the predicted vs. observed graph (meaning you are overpredicting), use the code below. It switches the y and x in the linear model and gives you the inverse slope, which is the R^2 (corrects over-prediction)
+    if(lmmod$coefficients[2]>1){
+      lmmod <- lm(flowdf_long$LOGFLOW~model_pred)
+    }
+    
+    modelstats_b[[d]][[m]] <- lmmod$coefficients[2]
+    modelstats_r2[[d]][[m]] <- modelfits[[d]][[m]]$rsquared
+  }
+}
+```
+
+# 4.0 Model Plots
+```{r model_plots}
+# make sure to change this to be bR2, it's just b right now
+
+for(d in 1:4){
+  for (m in 1:8){
+    png(paste0("outputs/obspreplots/ovp_d", d, "_m", m), width=3.25, height=2.85, units="in", pointsize=8, res=1200)
+    print(plot(flowdfl[[d]]$LOGFLOW, modelpred[[d]][[m]], main="Predicted vs. Observed", ylab="Predicted Log Flow", xlab="Observed Log Flow"))
+    # add an abline for the perfect fit
+    abline(0,1, col="grey80", lty=2, lwd=2)
+    lmmod <- lm(modelpred[[d]][[m]]~flowdfl[[d]]$LOGFLOW)
+    abline(lmmod, col="red")
+    legend("bottomright", horiz=FALSE, inset=c(0.01, 0.01), cex=0.6, c("Y = X line", "regression line"), lty=c(2,1), lwd=c(2,1), col=c("grey80","red"), bg="grey96", xpd=TRUE)
+    mtext(paste("Y =", round(lmline$coefficients[2],3), "X +", round(lmmod$coefficients[1],0)), side=3, line=1, cex=0.8, adj=0.1)
+    if(lmmod$coefficients[2]>1){
+      lmmod <- lm(flowdfl[[d]]$LOGFLOW~modelpred[[d]][[m]])
+    }
+    mtext(paste("Model R2:", round(lmmod$coefficients[2],3)), side=3, line=0.3, cex=0.8, adj=0.1)
+    dev.off()
+  }
+}
+
+```
