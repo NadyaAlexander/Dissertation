@@ -185,8 +185,8 @@ for(d in 1:ngates){
 # 4.0 Model Plots
 ```{r model_plots}
 # paste the equation for flow (use formula string) inside the plots, so we know what equation it was modeling without having to go back and forth
-for(d in 1:4){
-  for (m in 1:8){
+for(d in 1:ngates){
+  for (m in 1:nformulas){
     png(paste0("outputs/obspreplots/ovp_d", d, "_m", m, ".png"), width=3.25, height=2.85, units="in", pointsize=8, res=1200)
     plot(flowdfl[[d]]$LOGFLOW, modelpred[[d]][[m]], ylab="Observed Log Flow", xlab="Predicted Log Flow")
     
@@ -206,7 +206,7 @@ for(d in 1:4){
 }
 ```
 
-# 5.0 Monte Carlo Sim
+# 5.0 Uncertainty from flow table -- Monte Carlo Sim
 In this section, we are searching for the distribution of errors (i.e., the shape of the PDF) necessary in the inputs (i.e., coefficients, G, and H) of the flow equation that produce a certain (i.e., +/-6% or +/-12%) error in the flow. 
 Since flow is turbulent, let's assume a normal distribution of the errors. At a 95% confidence interval, with a normal distribution, we report the +/-2 standard deviation as the error. 
 For simplicity, we will define the error distribution for coefficients of the equation to be all the same: normal distribution with the same coefficient of variation (standard deviation/mean).
@@ -232,7 +232,8 @@ setseed(5152019)
 
 coefofvar <- 1
 optvarflow <- 9e-4
-montecarlosim <- function(coefofvar){
+montecarlosim <- function(coefofvar, dataindex){
+  d <- dataindex
   astdv <- coefofvar*modelcoef[[d]][[5]]["A"]
   anorm <- rnorm(nsim, modelcoef[[d]][[5]]["A"], astdv)
   bstdv <- coefofvar*modelcoef[[d]][[5]]["B"]
@@ -253,12 +254,45 @@ montecarlosim <- function(coefofvar){
   }
   stdvflow <- sd(flowsim)
   varflow <- sd(flowsim)^2
-  varflow - optvarflow
+  resultstomin <- varflow - optvarflow
 }
 
-for(d in 1:4){
-  optresult <- optim(par = c(1), fn = montecarlosim)
-  montecarlosim(coefofvar)
+# why are the results so unstable, and so far from the optimum? and why are there warnings...
+optresult <- replicate(n=ngates, expr=list())
+for(d in 1:ngates){
+  optresult[[d]] <- optim(par=c(1), fn=montecarlosim, dataindex=d, method="BFGS", control=list(maxit=10000, abstol=0.01 ))
 }
 ```
 
+# 6.0 Uncertainty from operations -- Simulations
+```{r opsim}
+# volume = t[Q] = t[(aG^2 + bG + c)*H^(f)]
+
+# let's start with uncertainty in Q
+opflowsim <- replicate(n=ngates, expr=list())
+opvarflow <- replicate(n=ngates, expr=list())
+for(d in 1:ngates){
+  coefofvar <- optresult[[d]]$par
+  astdv <- coefofvar*modelcoef[[d]][[5]]["A"]
+  anorm <- rnorm(nsim, modelcoef[[d]][[5]]["A"], astdv)
+  bstdv <- coefofvar*modelcoef[[d]][[5]]["B"]
+  bnorm <- rnorm(nsim, modelcoef[[d]][[5]]["B"], bstdv)
+  cstdv <- coefofvar*modelcoef[[d]][[5]]["C"]
+  cnorm <- rnorm(nsim, modelcoef[[d]][[5]]["C"], cstdv)
+  ffstdv <- coefofvar*modelcoef[[d]][[5]]["FF"]
+  ffnorm <- rnorm(nsim, modelcoef[[d]][[5]]["FF"], ffstdv)
+  # set the G, and H at a specific value, or itterate over operational G and H, either way if you are not changing the operational error in G and H then you should get the right results
+  gnorm <- rnorm(nsim, 15,  0.01)
+  hnorm <- rnorm(nsim, 0.79, 0.5)
+  
+  opflowsim <- vector()
+  for(i in 1:nsim){
+    opflowsim[i] <- (anorm[i]*gunif[i]^2 + bnorm[i]*gunif[i] + cnorm[i])*(hunif[i]^ffnorm[i])
+  }
+  opstdvflow <- sd(opflowsim)
+  opvarflow[[d]] <- sd(opflowsim)^2
+}
+
+
+
+```
