@@ -223,17 +223,19 @@ The decision variables are the parameters of the distributions that describe the
 # the number of Monte-Carlo loops
 nsim <- 100
 
-# for +/- 6% error on Q
-# 2SD = 0.06
-# SD = 0.03
-# VAR^0.5 = 0.03
-# VAR = 0.0009
+# for +/- 6% error of Q
+# 2SD = 0.06 * Q
+# SD = 0.03 * Q
+# VAR^0.5 = 0.03 * Q
+# VAR = 0.0009 * Q^2
 setseed(5152019)
 
 coefofvar <- 1
-optvarflow <- 9e-4
+optvarflowp <- 9e-4
 montecarlosim <- function(coefofvar, dataindex){
   d <- dataindex
+
+  # we can add the ability to call different functions here, but for now just equation #5
   astdv <- coefofvar*modelcoef[[d]][[5]]["A"]
   anorm <- rnorm(nsim, modelcoef[[d]][[5]]["A"], astdv)
   bstdv <- coefofvar*modelcoef[[d]][[5]]["B"]
@@ -250,10 +252,12 @@ montecarlosim <- function(coefofvar, dataindex){
   
   flowsim <- vector()
   for(i in 1:nsim){
+    # we can add the ability to call different functions here, but for now just equation #5
     flowsim[i] <- (anorm[i]*gunif[i]^2 + bnorm[i]*gunif[i] + cnorm[i])*(hunif[i]^ffnorm[i])
   }
   stdvflow <- sd(flowsim)
   varflow <- sd(flowsim)^2
+  optvarflow <- optvarflowp*mean(flowsim)^2 # check this with Nadya, isn't this a better way than fixing the 6% at the mean, min and max?
   resultstomin <- varflow - optvarflow
 }
 
@@ -265,12 +269,15 @@ for(d in 1:ngates){
 ```
 
 # 6.0 Uncertainty from operations -- Simulations
-```{r opsim}
+## 6.1 Uncertainty in Operational Flow
+```{r opsim_flow}
 # volume = t[Q] = t[(aG^2 + bG + c)*H^(f)]
 
-# let's start with uncertainty in Q
 opflowsim <- replicate(n=ngates, expr=list())
 opvarflow <- replicate(n=ngates, expr=list())
+opvolsim <- replicate(n=ngates, expr=list())
+opvarvol <- replicate(n=ngates, expr=list())
+
 for(d in 1:ngates){
   coefofvar <- optresult[[d]]$par
   astdv <- coefofvar*modelcoef[[d]][[5]]["A"]
@@ -285,14 +292,29 @@ for(d in 1:ngates){
   gnorm <- rnorm(nsim, 15,  0.01)
   hnorm <- rnorm(nsim, 0.79, 0.5)
   
+  # uncertainty in operational flow
   opflowsim <- vector()
   for(i in 1:nsim){
     opflowsim[i] <- (anorm[i]*gunif[i]^2 + bnorm[i]*gunif[i] + cnorm[i])*(hunif[i]^ffnorm[i])
   }
-  opstdvflow <- sd(opflowsim)
+  # opstdvflow <- sd(opflowsim) # this is superfluous but calculate it if you really want
   opvarflow[[d]] <- sd(opflowsim)^2
+  
+  # uncertainty in operational volume, added t in the equation
+  tmean <- 
+  tstdv <- 
+  tnorm <- rnorm(nsim, tmean, tstdv)
+  opvolsim <- vector()
+  for(j in 1:nsim){
+    opvolsim[j] <- (anorm[j]*gunif[j]^2 + bnorm[j]*gunif[j] + cnorm[j])*(hunif[j]^ffnorm[j])*tnorm[j]
+  }
+  # opstdvvol <- sd(opvolsim) # this is superfluous but calculate it if you really want
+  opvarvol[[d]] <- sd(opvolsim)^2
+  
+  # consider having t=f(i or location)
+  
 }
-
-
-
 ```
+
+
+
