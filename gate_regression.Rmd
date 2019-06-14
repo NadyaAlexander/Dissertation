@@ -228,9 +228,9 @@ nsim <- 100
 # SD = 0.03 * Q
 # VAR^0.5 = 0.03 * Q
 # VAR = 0.0009 * Q^2
-setseed(5152019)
+set.seed(5152019)
 
-coefofvar <- 1
+coefofvar <- 0.459781
 optvarflowp <- 9e-4
 montecarlosim <- function(coefofvar, dataindex){
   d <- dataindex
@@ -257,15 +257,23 @@ montecarlosim <- function(coefofvar, dataindex){
   }
   stdvflow <- sd(flowsim)
   varflow <- sd(flowsim)^2
-  optvarflow <- optvarflowp*mean(flowsim)^2 # check this with Nadya, isn't this a better way than fixing the 6% at the mean, min and max?
+  optvarflow <- optvarflowp*mean(flowsim)^2 # mean(flowdfl[[d]]$FLOW) should be mean(flowsim), do with both and see if results of optimization vary or not
   resultstomin <- varflow - optvarflow
 }
 
 # why are the results so unstable, and so far from the optimum? and why are there warnings...
 optresult <- replicate(n=ngates, expr=list())
 for(d in 1:ngates){
-  optresult[[d]] <- optim(par=c(1), fn=montecarlosim, dataindex=d, method="BFGS", control=list(maxit=10000, abstol=0.01 ))
+  optresult[[d]] <- optim(par=c(1), fn=montecarlosim, dataindex=d, method="L-BFGS-B", lower=0, upper=50, control=list(trace=TRUE))
 }
+
+library(optimx)
+optresult <- replicate(n=ngates, expr=list())
+for(d in 1:ngates){
+  optresult[[d]] <- optimx(par=c(1), fn=montecarlosim, dataindex=d, method="nlm", control=list(trace=TRUE, steptol=1e-2, maxit=1000))
+}
+
+# the function is too nonlinear for this optimization (?)
 ```
 
 # 6.0 Uncertainty from operations -- Simulations
@@ -301,8 +309,8 @@ for(d in 1:ngates){
   opvarflow[[d]] <- sd(opflowsim)^2
   
   # uncertainty in operational volume, added t in the equation
-  tmean <- 
-  tstdv <- 
+  tmean <- 12 # in hours
+  tstdv <- 0.5 # conservative error estimates
   tnorm <- rnorm(nsim, tmean, tstdv)
   opvolsim <- vector()
   for(j in 1:nsim){
@@ -312,7 +320,9 @@ for(d in 1:ngates){
   opvarvol[[d]] <- sd(opvolsim)^2
   
   # consider having t=f(i or location)
-  
+  # canal has a capacity, they don't deliver to everyone at the same time (maybe won't matter)
+  # dependency, he may pick a point of accuracy, deliver accurately to one and over deliver to someone else. or the middle of the canal as their point of accuracy. 
+  # conceptual exercise
 }
 ```
 
