@@ -148,15 +148,11 @@ for(d in 1:ngates){
 
 # 3.0 Model Stats
 ```{r model_stats}
+library(hydroGOF)
+
 modelcoef <- replicate(n=ngates, expr=list())
 modelpred <- replicate(n=ngates, expr=list())
-modelstats_b <- replicate(n=ngates, expr=list())
-modelstats_r2 <- replicate(n=ngates, expr=list())
-modelstats_br2 <- replicate(n=ngates, expr=list())
-
-r2 <- function(pred, obs){
-  cor(pred, obs)^2
-}
+modelstats <- replicate(n=ngates, expr=list())
 
 for(d in 1:ngates){
   for (m in 1:nformulas){
@@ -166,20 +162,83 @@ for(d in 1:ngates){
     # use the fits to predict
     modelpred[[d]][[m]] <- predict(modelfits[[d]][[m]], data=flowdfl[[d]], type="response")
     
-    # fit an lm to pred vs. obs to calculate b
-    lmmod <- lm(modelpred[[d]][[m]]~flowdfl[[d]]$LOGFLOW)
+    # use the hydroGOF package to calculate model measures of fit
+    modelstats[[d]][[m]] <- gof(modelpred[[d]][[m]], flowdfl[[d]]$LOGFLOW)
     
-    # calculate bR2 or bias-corrected R^2
-    # For slope greater than one in the predicted vs. observed graph (meaning you are overpredicting), use the code below. It switches the y and x in the linear model and gives you the inverse slope, which is the R^2 (corrects over-prediction)
-    if(lmmod$coefficients[2]>1){
-      lmmod <- lm(flowdfl[[d]]$LOGFLOW~modelpred[[d]][[m]])
-    }
-    
-    modelstats_b[[d]][[m]] <- lmmod$coefficients[2]
-    modelstats_r2[[d]][[m]] <- r2(modelpred[[d]][[m]], flowdfl[[d]]$LOGFLOW)
-    modelstats_br2[[d]][[m]] <- modelstats_b[[d]][[m]]*modelstats_r2[[d]][[m]]
+    # # no need to do all of this now because the stats package does it all for us
+    # # fit an lm to pred vs. obs to calculate b
+    # lmmod <- lm(modelpred[[d]][[m]]~flowdfl[[d]]$LOGFLOW)
+    # 
+    # # calculate bR2 or bias-corrected R^2
+    # # For slope greater than one in the predicted vs. observed graph (meaning you are overpredicting), use the code below. It switches the y and x in the linear model and gives you the inverse slope, which is the R^2 (corrects over-prediction)
+    # if(lmmod$coefficients[2]>1){
+    #   lmmod <- lm(flowdfl[[d]]$LOGFLOW~modelpred[[d]][[m]])
+    # }
+    # 
+    # modelstats_b[[d]][[m]] <- lmmod$coefficients[2]
+    # modelstats_r2[[d]][[m]] <- r2(modelpred[[d]][[m]], flowdfl[[d]]$LOGFLOW)
+    # modelstats_br2[[d]][[m]] <- modelstats_b[[d]][[m]]*modelstats_r2[[d]][[m]]
   }
 }
+```
+
+```{r modeloutputs1}
+# model observations and predictions
+modelcsv <- do.call("rbind", flowdfl)
+modelcsv$NGATE <- c(rep(1, nrow(flowdfl[[1]])), rep(2, nrow(flowdfl[[2]])), rep(3, nrow(flowdfl[[3]])), rep(4, nrow(flowdfl[[4]])))
+
+modelpredm <- do.call("rbind", modelpred)
+modelcsv$MODEL1 <- c(unlist(modelpredm[1,1]), unlist(modelpredm[2,1]), unlist(modelpredm[3,1]), unlist(modelpredm[4,1]))
+modelcsv$MODEL2 <- c(unlist(modelpredm[1,2]), unlist(modelpredm[2,2]), unlist(modelpredm[3,2]), unlist(modelpredm[4,2]))
+modelcsv$MODEL3 <- c(unlist(modelpredm[1,3]), unlist(modelpredm[2,3]), unlist(modelpredm[3,3]), unlist(modelpredm[4,3]))
+modelcsv$MODEL4 <- c(unlist(modelpredm[1,4]), unlist(modelpredm[2,4]), unlist(modelpredm[3,4]), unlist(modelpredm[4,4]))
+modelcsv$MODEL5 <- c(unlist(modelpredm[1,5]), unlist(modelpredm[2,5]), unlist(modelpredm[3,5]), unlist(modelpredm[4,5]))
+modelcsv$MODEL6 <- c(unlist(modelpredm[1,6]), unlist(modelpredm[2,6]), unlist(modelpredm[3,6]), unlist(modelpredm[4,6]))
+modelcsv$MODEL7 <- c(unlist(modelpredm[1,7]), unlist(modelpredm[2,7]), unlist(modelpredm[3,7]), unlist(modelpredm[4,7]))
+modelcsv$MODEL8 <- c(unlist(modelpredm[1,8]), unlist(modelpredm[2,8]), unlist(modelpredm[3,8]), unlist(modelpredm[4,8]))
+
+write.csv(modelcsv, "outputs/gatemodeling.csv", row.names=FALSE)
+```
+
+```{r modeloutputs2}
+# model coefficients and measures of fit
+modelcsv <- data.frame(matrix(nrow=ngates*nformulas, ncol=0))
+modelcsv$NGATE <- c(rep(1,8), rep(2,8), rep(3,8), rep(4,8))
+modelcsv$NMODEL <- rep(c(1:8), 4)
+
+i <- 1
+for(d in 1:ngates){
+  for (m in 1:nformulas){
+    modelcsv$COEF_A[i] <- modelcoef[[d]][[m]]["A"]
+    modelcsv$COEF_B[i] <- modelcoef[[d]][[m]]["B"]
+    modelcsv$COEF_C[i] <- modelcoef[[d]][[m]]["C"]
+    modelcsv$COEF_D[i] <- modelcoef[[d]][[m]]["D"]
+    modelcsv$COEF_E[i] <- modelcoef[[d]][[m]]["E"]
+    modelcsv$COEF_FF[i] <- modelcoef[[d]][[m]]["FF"]
+    modelcsv$ME[i] <- t(modelstats[[d]][[m]])[1]
+    modelcsv$MAE[i] <- t(modelstats[[d]][[m]])[2]
+    modelcsv$MSE[i] <- t(modelstats[[d]][[m]])[3]
+    modelcsv$RMSE[i] <- t(modelstats[[d]][[m]])[4]
+    modelcsv$NRMSE[i] <- t(modelstats[[d]][[m]])[5]
+    modelcsv$PBIAS[i] <- t(modelstats[[d]][[m]])[6]
+    modelcsv$RSR[i] <- t(modelstats[[d]][[m]])[7]
+    modelcsv$rSD[i] <- t(modelstats[[d]][[m]])[8]
+    modelcsv$NSE[i] <- t(modelstats[[d]][[m]])[9]
+    modelcsv$mNSE[i] <- t(modelstats[[d]][[m]])[10]
+    modelcsv$rNSE[i] <- t(modelstats[[d]][[m]])[11]
+    modelcsv$d[i] <- t(modelstats[[d]][[m]])[12]
+    modelcsv$md[i] <- t(modelstats[[d]][[m]])[13]
+    modelcsv$rd[i] <- t(modelstats[[d]][[m]])[14]
+    modelcsv$cp[i] <- t(modelstats[[d]][[m]])[15]
+    modelcsv$r[i] <- t(modelstats[[d]][[m]])[16]
+    modelcsv$R2[i] <- t(modelstats[[d]][[m]])[17]
+    modelcsv$bR2[i] <- t(modelstats[[d]][[m]])[18]
+    modelcsv$KGE[i] <- t(modelstats[[d]][[m]])[19]
+    modelcsv$VE[i] <- t(modelstats[[d]][[m]])[20]
+    i <- i+1
+  }
+}
+write.csv(modelcsv, "outputs/gatemodeling2.csv", row.names=FALSE)
 ```
 
 # 4.0 Model Plots
@@ -188,19 +247,17 @@ for(d in 1:ngates){
 for(d in 1:ngates){
   for (m in 1:nformulas){
     png(paste0("outputs/obspreplots/ovp_d", d, "_m", m, ".png"), width=3.25, height=2.85, units="in", pointsize=8, res=1200)
-    plot(flowdfl[[d]]$LOGFLOW, modelpred[[d]][[m]], ylab="Observed Log Flow", xlab="Predicted Log Flow")
-    
-    # add line for the perfect fit
-    abline(0,1, col="grey80", lty=2, lwd=2)
-    
-    # add line for linear fit
-    lmmod <- lm(modelpred[[d]][[m]]~flowdfl[[d]]$LOGFLOW)
-    abline(lmmod, col="red")
-    
-    legend("bottomright", horiz=FALSE, inset=c(0.01, 0.01), cex=0.6, c("Y = X line", "regression line"), lty=c(2,1), lwd=c(2,1), col=c("grey80","red"), bg="grey96", xpd=TRUE)
-    mtext(paste("Y =", round(lmmod$coefficients[2],3), "X +", round(lmmod$coefficients[1],0)), side=3, line=1, cex=0.8, adj=0.1)
-  
-    mtext(paste("Model bR2:", round(modelstats_br2[[d]][[m]],3)), side=3, line=0.3, cex=0.8, adj=0.1)
+      plot(flowdfl[[d]]$LOGFLOW, modelpred[[d]][[m]], ylab="Observed Log Flow", xlab="Predicted Log Flow", pch=19)
+      
+      # add line for the perfect fit
+      abline(0,1, col="grey80", lty=2, lwd=2)
+      
+      # add line for linear fit
+      lmmod <- lm(modelpred[[d]][[m]]~flowdfl[[d]]$LOGFLOW)
+      abline(lmmod, col="red")
+      legend("bottomright", horiz=FALSE, inset=c(0.01, 0.01), cex=0.6, c("Y = X line", "regression line"), lty=c(2,1), lwd=c(2,1), col=c("grey80","red"), bg="grey96", xpd=TRUE)
+      mtext(paste("Y =", round(lmmod$coefficients[2],3), "X +", round(lmmod$coefficients[1],0)), side=3, line=1, cex=0.8, adj=0.1)
+      mtext(paste("Model bR2:", round(t(modelstats[[d]][[m]])[18],3)), side=3, line=0.3, cex=0.8, adj=0.1)
     dev.off()
   }
 }
@@ -274,6 +331,34 @@ for(d in 1:ngates){
 }
 
 # the function is too nonlinear for this optimization (?)
+
+# see where the nonlinearity is coming from
+# log transformations to make it linear 
+
+# or is the non-linearinty coming from the distributions
+
+# evaluate function on a grid
+cvrange <- seq(0.01, 1.5, 0.001)
+optresult <- data.frame(matrix(NA, nrow=length(cvrange), ncol=ngates))
+optresult$CV <- cvrange
+
+for(d in 1:ngates){
+  for(c in 1:length(cvrange)){
+    cv <- cvrange[c]
+    optresult[c, ngates] <- montecarlosim(coefofvar=cv, dataindex=d)
+  }
+}
+
+png('outputs/optimization_function.png', width=3.25, height=3, units="in", pointsize=8, res=1200)
+  par(mar=c(4,4.5,1,1)+0.1)
+  plot(optresult$CV, optresult$X4, xlab="Coefficient of Variation", ylab="Uncertainty Due to Errors in Flow Tables", pch=19, col="steelblue")
+  # points(optresult$CV, optresult$X1, pch=19, col="steelblue1")
+  # points(optresult$CV, optresult$X2, pch=19, col="steelblue2")
+  # points(optresult$CV, optresult$X3, pch=19, col="steelblue3")
+  points(optresult[which.min(optresult$X4), "CV"], min(optresult$X4), pch=19, col="red")
+  text(paste0("min=(", optresult[which.min(optresult$X4), "CV"], ",", round(min(optresult$X4), 0), ")"), x=1.5*optresult[which.min(optresult$X4), "CV"], y=min(optresult$X4), pos=3, cex=0.8)
+  legend("topleft", c("Gate 1", "Gate 2", "Gate 3", "Gate 4"), pch=c(19,19,19,19), col=c("steelblue1", "steelblue2", "steelblue3", "steelblue"), inset=c(0.02,0.02), cex=0.8, bg="grey96")
+dev.off()
 ```
 
 # 6.0 Uncertainty from operations -- Simulations
