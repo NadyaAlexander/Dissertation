@@ -263,7 +263,7 @@ for(d in 1:ngates){
 }
 ```
 
-# 5.0 Uncertainty from flow table -- Monte Carlo Sim
+# 5.0 Uncertainty from Flow Table Equation -- Monte Carlo Sim
 In this section, we are searching for the distribution of errors (i.e., the shape of the PDF) necessary in the inputs (i.e., coefficients, G, and H) of the flow equation that produce a certain (i.e., +/-6% or +/-12%) error in the flow. 
 Since flow is turbulent, let's assume a normal distribution of the errors. At a 95% confidence interval, with a normal distribution, we report the +/-2 standard deviation as the error. 
 For simplicity, we will define the error distribution for coefficients of the equation to be all the same: normal distribution with the same coefficient of variation (standard deviation/mean).
@@ -293,86 +293,155 @@ montecarlosim <- function(coefofvar, dataindex){
   d <- dataindex
 
   # we can add the ability to call different functions here, but for now just equation #5
+  atrue <- modelcoef[[d]][[5]]["A"] # assume the mean is the true value
   astdv <- coefofvar*modelcoef[[d]][[5]]["A"]
-  anorm <- rnorm(nsim, modelcoef[[d]][[5]]["A"], astdv)
+  anorm <- rnorm(nsim, modelcoef[[d]][[5]]["A"], astdv) # samples around true value, creating error
+  
+  btrue <- modelcoef[[d]][[5]]["B"]
   bstdv <- coefofvar*modelcoef[[d]][[5]]["B"]
   bnorm <- rnorm(nsim, modelcoef[[d]][[5]]["B"], bstdv)
+  
+  ctrue <- modelcoef[[d]][[5]]["C"]
   cstdv <- coefofvar*modelcoef[[d]][[5]]["C"]
   cnorm <- rnorm(nsim, modelcoef[[d]][[5]]["C"], cstdv)
+  
+  fftrue <- modelcoef[[d]][[5]]["FF"]
   ffstdv <- coefofvar*modelcoef[[d]][[5]]["FF"]
   ffnorm <- rnorm(nsim, modelcoef[[d]][[5]]["FF"], ffstdv)
-  gunif <- runif(nsim, min(flowdfl[[d]]$G), max(flowdfl[[d]]$G))
+  
+  # note that G and H are certain here, the only source of uncertainty is in the model parameters! We are sampling it from a uniform distribution, rather than looping over all possible values, with a high enough nsim, this shouldn't be an issue.
+  gunif <- runif(nsim, min(flowdfl[[d]]$G), max(flowdfl[[d]]$G)) 
   hunif <- runif(nsim, min(flowdfl[[d]]$H), max(flowdfl[[d]]$H))
   
-  # to view them plot the histograms
+  # to view them you can plot the histograms
   # hist(gunif)
   
-  flowsim <- vector()
+  flowsim <- flowtruth <- vector()
   for(i in 1:nsim){
     # we can add the ability to call different functions here, but for now just equation #5
     flowsim[i] <- (anorm[i]*gunif[i]^2 + bnorm[i]*gunif[i] + cnorm[i])*(hunif[i]^ffnorm[i])
+    flowtruth[i] <- (atrue*gunif[i]^2 + btrue*gunif[i] + ctrue)*(hunif[i]^fftrue)
+    
+    # can do the same calcs in the log transformed version of the equations, but not going to make a difference
+    # LOGFLOW ~log(A*G^2+B*G+C)+(FF)*log(H)
+    # logflowsim[i] <- log(anorm[i]*gunif[i]^2 + bnorm[i]*gunif[i] + cnorm[i]) + ffnorm[i]*log(hunif[i])
   }
-  stdvflow <- sd(flowsim)
-  varflow <- sd(flowsim)^2
-  optvarflow <- optvarflowp*mean(flowsim)^2 # mean(flowdfl[[d]]$FLOW) should be mean(flowsim), do with both and see if results of optimization vary or not
-  resultstomin <- varflow - optvarflow
+  
+  flowerror <- flowtruth-flowsim
+  meanflowerror <- mean(flowerror)
+  stdvflowerror <- sd(flowerror)
+  varflowerror <- sd(flowerror)^2
+  
+  # optvarflow <- optvarflowp*mean(flowsim)^2 # mean(flowdfl[[d]]$FLOW) should be mean(flowsim), do with both and see if results of optimization vary or not
+  # resultstomin <- varflow - optvarflow
+  
+  # a hard condition for optimization: all errors in flow have to be less than the maximum error allowed (e.g., 6% of flow)
+  optflow <- optvarflowp*flowtruth
+  errorconditioncol <- ifelse(flowerror<optflow, 1, 0)
+  # resultstomin <- nsim-sum(errorconditioncol)
+  df <- cbind(FLOWTRUTH=flowtruth, FLOWSIM=flowsim, FLOWERROR=flowerror, OPTFLOW=optflow, ERRORCONDITION=errorconditioncol)
 }
 
-# why are the results so unstable, and so far from the optimum? and why are there warnings...
-optresult <- replicate(n=ngates, expr=list())
-for(d in 1:ngates){
-  optresult[[d]] <- optim(par=c(1), fn=montecarlosim, dataindex=d, method="L-BFGS-B", lower=0, upper=50, control=list(trace=TRUE))
-}
-
-library(optimx)
-optresult <- replicate(n=ngates, expr=list())
-for(d in 1:ngates){
-  optresult[[d]] <- optimx(par=c(1), fn=montecarlosim, dataindex=d, method="nlm", control=list(trace=TRUE, steptol=1e-2, maxit=1000))
-}
+# # why are the results so unstable, and so far from the optimum? and why are there warnings...
+# optresult <- replicate(n=ngates, expr=list())
+# for(d in 1:ngates){
+#   optresult[[d]] <- optim(par=c(1), fn=montecarlosim, dataindex=d, method="L-BFGS-B", lower=0, upper=50, control=list(trace=TRUE))
+# }
+# 
+# library(optimx)
+# optresult <- replicate(n=ngates, expr=list())
+# for(d in 1:ngates){
+#   optresult[[d]] <- optimx(par=c(1), fn=montecarlosim, dataindex=d, method="nlm", control=list(trace=TRUE, steptol=1e-2, maxit=1000))
+# }
 
 # the function is too nonlinear for this optimization (?)
+```
 
-# see where the nonlinearity is coming from
-# log transformations to make it linear 
+```{r grideval}
+# optflowerrorp is the percent of error allowed, like 6%, 12%
+equationerrorsim <- function(dataindex, coefofvar, optflowerrorp){
+  d <- dataindex
+  # we can add the ability to call different functions here, but for now just equation #5
+  atrue <- modelcoef[[d]][[5]]["A"] # assume the mean is the true value
+  astdv <- coefofvar*modelcoef[[d]][[5]]["A"]
+  anorm <- rnorm(nsim, modelcoef[[d]][[5]]["A"], astdv) # samples around true value, creating error
+  btrue <- modelcoef[[d]][[5]]["B"]
+  bstdv <- coefofvar*modelcoef[[d]][[5]]["B"]
+  bnorm <- rnorm(nsim, modelcoef[[d]][[5]]["B"], bstdv)
+  ctrue <- modelcoef[[d]][[5]]["C"]
+  cstdv <- coefofvar*modelcoef[[d]][[5]]["C"]
+  cnorm <- rnorm(nsim, modelcoef[[d]][[5]]["C"], cstdv)
+  fftrue <- modelcoef[[d]][[5]]["FF"]
+  ffstdv <- coefofvar*modelcoef[[d]][[5]]["FF"]
+  ffnorm <- rnorm(nsim, modelcoef[[d]][[5]]["FF"], ffstdv)
+  
+  # note that G and H are certain here, the only source of uncertainty is in the model parameters! We are sampling it from a uniform distribution, rather than looping over all possible values, with a high enough nsim, this shouldn't be an issue.
+  gunif <- runif(nsim, min(flowdfl[[d]]$G), max(flowdfl[[d]]$G)) 
+  hunif <- runif(nsim, min(flowdfl[[d]]$H), max(flowdfl[[d]]$H))
+  
+  flowsim <- flowtruth <- vector()
+  for(i in 1:nsim){
+    # we can add the ability to call different functions here, but for now just equation #5
+    flowsim[i] <- (anorm[i]*gunif[i]^2 + bnorm[i]*gunif[i] + cnorm[i])*(hunif[i]^ffnorm[i])
+    flowtruth[i] <- (atrue*gunif[i]^2 + btrue*gunif[i] + ctrue)*(hunif[i]^fftrue)
+  }
+  flowerror <- flowtruth-flowsim
+  
+  # a hard condition for optimization: all errors in flow have to be less than the maximum error allowed (e.g., 6% of flow)
+  optflowerror <- optflowerrorp*flowtruth
+  errorconditioncol <- ifelse(abs(flowerror)<optflowerror, 1, 0)
+  # resultstomin <- nsim-sum(errorconditioncol)
+  resultsdf <- cbind(FLOWTRUTH=flowtruth, FLOWSIM=flowsim, FLOWERROR=flowerror, OPTFLOW=optflowerror, ERRORCONDITION=errorconditioncol)
+}
 
-# or is the non-linearinty coming from the distributions
-
-# evaluate function on a grid
-cvrange <- seq(0.01, 1.5, 0.001)
-optresult <- data.frame(matrix(NA, nrow=length(cvrange), ncol=ngates))
-optresult$CV <- cvrange
-
+cvrange <- seq(0.01, 0.5, 0.01)
+optresult <- replicate(n=ngates, expr=list())
 for(d in 1:ngates){
   for(c in 1:length(cvrange)){
     cv <- cvrange[c]
-    optresult[c, ngates] <- montecarlosim(coefofvar=cv, dataindex=d)
+    optresult[[d]][[c]] <- equationerrorsim(dataindex=d, coefofvar=cv, optflowerrorp=0.06)
   }
 }
 
-png('outputs/optimization_function.png', width=3.25, height=3, units="in", pointsize=8, res=1200)
+for(c in 1:length(cvrange)){
+  i <- cvrange[c]
+  png(paste0('outputs/cloud/optimization_cloud_', c, ".png"), width=3.25, height=3, units="in", pointsize=8, res=1200)
+  par(mar=c(4,4,2,1)+0.1)
+  plot(optresult[[1]][[c]][, "FLOWERROR"], optresult[[1]][[c]][, "FLOWTRUTH"], col=c("red", "steelblue1")[optresult[[1]][[c]][, "ERRORCONDITION"]+1], pch=19, xlab="Error in Flow (cfs)", ylab="True Flow(cfs)")
+  points(optresult[[2]][[c]][, "FLOWERROR"], optresult[[2]][[c]][, "FLOWTRUTH"], col=c("red", "steelblue2")[optresult[[2]][[c]][, "ERRORCONDITION"]+1], pch=19)
+  points(optresult[[3]][[c]][, "FLOWERROR"], optresult[[3]][[c]][, "FLOWTRUTH"], col=c("red", "steelblue3")[optresult[[3]][[c]][, "ERRORCONDITION"]+1], pch=19)
+  points(optresult[[4]][[c]][, "FLOWERROR"], optresult[[4]][[c]][, "FLOWTRUTH"], col=c("red", "steelblue")[optresult[[4]][[c]][, "ERRORCONDITION"]+1], pch=19)
+  mtext(paste0("Coefficient of Variation: ", i), side=3, line=0)
+  legend("topleft", c("Gate 1", "Gate 2", "Gate 3", "Gate 4"), pch=c(19,19,19,19), col=c("steelblue1", "steelblue2", "steelblue3", "steelblue"), inset=c(0.02,0.02), cex=0.8, bg="grey96")
+dev.off()
+}
+
+png('outputs/optimization_function2.png', width=3.25, height=3, units="in", pointsize=8, res=1200)
   par(mar=c(4,4.5,1,1)+0.1)
-  plot(optresult$CV, optresult$X4, xlab="Coefficient of Variation", ylab="Uncertainty Due to Errors in Flow Tables", pch=19, col="steelblue")
-  # points(optresult$CV, optresult$X1, pch=19, col="steelblue1")
-  # points(optresult$CV, optresult$X2, pch=19, col="steelblue2")
-  # points(optresult$CV, optresult$X3, pch=19, col="steelblue3")
-  points(optresult[which.min(optresult$X4), "CV"], min(optresult$X4), pch=19, col="red")
-  text(paste0("min=(", optresult[which.min(optresult$X4), "CV"], ",", round(min(optresult$X4), 0), ")"), x=1.5*optresult[which.min(optresult$X4), "CV"], y=min(optresult$X4), pos=3, cex=0.8)
+  plot(cvrange, nsim-do.call(rbind,lapply(optresult[[1]], colSums))[, "ERRORCONDITION"], xlab="Coefficient of Variation", ylab="No. of errors that exceed the 6% cutoff", pch=19, col="steelblue1")
+  points(cvrange, nsim-do.call(rbind,lapply(optresult[[2]], colSums))[, "ERRORCONDITION"], pch=19, col="steelblue2")
+  points(cvrange, nsim-do.call(rbind,lapply(optresult[[3]], colSums))[, "ERRORCONDITION"], pch=19, col="steelblue3")
+  points(cvrange, nsim-do.call(rbind,lapply(optresult[[4]], colSums))[, "ERRORCONDITION"], pch=19, col="steelblue")
+
+  # points(optresult[which.min(optresult$X4), "CV"], min(optresult$X4), pch=19, col="red")
+  # text(paste0("min=(", optresult[which.min(optresult$X4), "CV"], ",", round(min(optresult$X4), 0), ")"), x=1.5*optresult[which.min(optresult$X4), "CV"], y=min(optresult$X4), pos=3, cex=0.8)
   legend("topleft", c("Gate 1", "Gate 2", "Gate 3", "Gate 4"), pch=c(19,19,19,19), col=c("steelblue1", "steelblue2", "steelblue3", "steelblue"), inset=c(0.02,0.02), cex=0.8, bg="grey96")
 dev.off()
 ```
 
-# 6.0 Uncertainty from operations -- Simulations
+# 6.0 Uncertainty From Operations -- Simulations
 ## 6.1 Uncertainty in Operational Flow
 ```{r opsim_flow}
 # volume = t[Q] = t[(aG^2 + bG + c)*H^(f)]
 
-opflowsim <- replicate(n=ngates, expr=list())
+opflowsim <- data.frame(matrix(NA, nrow=nsim, ncol=ngates))
 opvarflow <- replicate(n=ngates, expr=list())
-opvolsim <- replicate(n=ngates, expr=list())
+opvolsim <- data.frame(matrix(NA, nrow=nsim, ncol=ngates))
 opvarvol <- replicate(n=ngates, expr=list())
 
 for(d in 1:ngates){
-  coefofvar <- optresult[[d]]$par
+  # coefofvar <- optresult[[d]]$par
+  coefofvar <- 0.5
   astdv <- coefofvar*modelcoef[[d]][[5]]["A"]
   anorm <- rnorm(nsim, modelcoef[[d]][[5]]["A"], astdv)
   bstdv <- coefofvar*modelcoef[[d]][[5]]["B"]
@@ -386,23 +455,19 @@ for(d in 1:ngates){
   hnorm <- rnorm(nsim, 0.79, 0.5)
   
   # uncertainty in operational flow
-  opflowsim <- vector()
   for(i in 1:nsim){
-    opflowsim[i] <- (anorm[i]*gunif[i]^2 + bnorm[i]*gunif[i] + cnorm[i])*(hunif[i]^ffnorm[i])
+    opflowsim[i,d] <- (anorm[i]*gnorm[i]^2 + bnorm[i]*gnorm[i] + cnorm[i])*(hnorm[i]^ffnorm[i])
   }
-  # opstdvflow <- sd(opflowsim) # this is superfluous but calculate it if you really want
-  opvarflow[[d]] <- sd(opflowsim)^2
+  opvarflow[[d]] <- sd(opflowsim[,d], na.rm=TRUE)^2
   
   # uncertainty in operational volume, added t in the equation
   tmean <- 12 # in hours
   tstdv <- 0.5 # conservative error estimates
   tnorm <- rnorm(nsim, tmean, tstdv)
-  opvolsim <- vector()
   for(j in 1:nsim){
-    opvolsim[j] <- (anorm[j]*gunif[j]^2 + bnorm[j]*gunif[j] + cnorm[j])*(hunif[j]^ffnorm[j])*tnorm[j]
+    opvolsim[j,d] <- (anorm[j]*gnorm[j]^2 + bnorm[j]*gnorm[j] + cnorm[j])*(hnorm[j]^ffnorm[j])*tnorm[j]
   }
-  # opstdvvol <- sd(opvolsim) # this is superfluous but calculate it if you really want
-  opvarvol[[d]] <- sd(opvolsim)^2
+  opvarvol[[d]] <- sd(opvolsim[,d], na.rm=TRUE)^2
   
   # consider having t=f(i or location)
   # canal has a capacity, they don't deliver to everyone at the same time (maybe won't matter)
@@ -410,6 +475,69 @@ for(d in 1:ngates){
   # conceptual exercise
 }
 ```
+
+# 7.0 Uncertainty at the Gate Level - Gates in Series
+```{r gate_network}
+# build a conceptual network for now, and later bring in the excel spreadsheet of the actual network
+# nrow is max number of gates, ncol is number of laterals
+maxgates <- 5
+maxlaterals <- 15
+network_gatetype <- data.frame(matrix(NA, nrow=maxgates, ncol=maxlaterals))
+rownames(network_gatetype) <- paste0("G", 1:5)
+colnames(network_gatetype) <- paste0("L", 1:15)
+network_gatetype[,] <- 1
+
+network_usl <- data.frame(matrix(NA, nrow=maxgates, ncol=maxlaterals))
+rownames(network_usl) <- paste0("G", 1:5)
+colnames(network_usl) <- paste0("L", 1:15)
+network_usl[,] <- mean(flowdfl[[1]]$H)
+
+network_g <- data.frame(matrix(NA, nrow=maxgates, ncol=maxlaterals))
+rownames(network_g) <- paste0("G", 1:5)
+colnames(network_g) <- paste0("L", 1:15)
+network_g[,] <- mean(flowdfl[[1]]$G)
+
+
+netopflowsim <- data.frame(matrix(NA, nrow=nsim, ncol=ngates))
+netopvarflow <- replicate(n=ngates, expr=list())
+netopvolsim <- data.frame(matrix(NA, nrow=nsim, ncol=ngates))
+netopvarvol <- replicate(n=ngates, expr=list())
+
+for(l in 1:maxlaterals){ # need to talk to Nadya here!!!!!!!
+  for(g in 1:maxgates){
+    # operational error
+    coefofvar <- 0.5
+    astdv <- coefofvar*modelcoef[[d]][[5]]["A"]
+    anorm <- rnorm(nsim, modelcoef[[d]][[5]]["A"], astdv)
+    bstdv <- coefofvar*modelcoef[[d]][[5]]["B"]
+    bnorm <- rnorm(nsim, modelcoef[[d]][[5]]["B"], bstdv)
+    cstdv <- coefofvar*modelcoef[[d]][[5]]["C"]
+    cnorm <- rnorm(nsim, modelcoef[[d]][[5]]["C"], cstdv)
+    ffstdv <- coefofvar*modelcoef[[d]][[5]]["FF"]
+    ffnorm <- rnorm(nsim, modelcoef[[d]][[5]]["FF"], ffstdv)
+    
+    # send a wave, let's say it arrives equally at all gates
+    network_usl[g,l]  
+    
+    # open gates at the same time and at different levels
+    network_g[g,l]
+    
+    # uncertainty in operational flow
+    for(i in 1:nsim){
+      netopflowsim[i,d] <- (anorm[i]*gnorm[i]^2 + bnorm[i]*gnorm[i] + cnorm[i])*(hnorm[i]^ffnorm[i])
+    }
+    netopvarflow[[d]] <- sd(opflowsim[,d], na.rm=TRUE)^2
+  }
+}
+
+```
+
+# 8.0 Uncertainty at the Lateral Level 
+```{r lateral_network}
+
+
+```
+
 
 
 
