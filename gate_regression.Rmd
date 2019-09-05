@@ -493,7 +493,8 @@ dev.off()
 ## 6.1 Uncertainty in Operational Flow - without consideration for the network
 ```{r uncertainty2}
 # volume = t[Q] = t[(aG^2 + bG + c)*H^(f)]
-operationalerrorsim <- function(dataindex, coefofvar=0.01, optflowerrorp=0.06){
+# gsd, hsd, tsd are the standard deviations of G, H and t respectively
+operationalerrorsim <- function(dataindex, coefofvar=0.01, optflowerrorp=0.06, gsd=0.1, hsd=0.1, tsd=0.25){
   d <- dataindex
   # we can add the ability to call different functions here, but for now just equation #5
   atrue <- modelcoef[[dd]][[5]]["A"] # assume the mean is the true value
@@ -518,9 +519,9 @@ operationalerrorsim <- function(dataindex, coefofvar=0.01, optflowerrorp=0.06){
   # now assign an error to each sampled G and H, added t for volume calcs
   tnorm <- gnorm <- hnorm <- vector()  
   for(i in 1:nsim){
-    gnorm[i] <- rnorm(1, gunif[i], 0.1)
-    hnorm[i] <- rnorm(1, hunif[i], 0.1)
-    tnorm[i] <- rnorm(1, tunif[i], 0.25) # 15 minute standard deviation
+    gnorm[i] <- rnorm(1, gunif[i], gsd)
+    hnorm[i] <- rnorm(1, hunif[i], hsd)
+    tnorm[i] <- rnorm(1, tunif[i], tsd) 
   }
   
   volsim <- voltruth <-  flowsim <- flowtruth <- vector()
@@ -543,9 +544,9 @@ operationalerrorsim <- function(dataindex, coefofvar=0.01, optflowerrorp=0.06){
   resultsdf <- cbind(FLOWTRUTH=flowtruth, FLOWSIM=flowsim, FLOWERROR=flowerror, OPTFLOW=optflowerror, ERRORCONDITION=errorconditioncol, VOLTRUTH=voltruth, VOLSIM=volsim, VOLERROR=volerror)
 }
 
-optresult <- replicate(n=ngates, expr=list())
+operationresult <- replicate(n=ngates, expr=list())
 for(dd in 1:ngates){
-  optresult[[dd]] <- operationalerrorsim(dataindex=dd, coefofvar=0.01, optflowerrorp=0.06)
+  operationresult[[dd]] <- operationalerrorsim(dataindex=dd, coefofvar=0.01, optflowerrorp=0.12)
 }
 ```
 
@@ -577,51 +578,34 @@ dev.off()
 # nrow is max number of gates, ncol is number of laterals
 maxgates <- 5
 maxlaterals <- 15
+
 network_gatetype <- data.frame(matrix(NA, nrow=maxgates, ncol=maxlaterals))
 rownames(network_gatetype) <- paste0("G", 1:5)
 colnames(network_gatetype) <- paste0("L", 1:15)
 network_gatetype[,] <- 1
 
-network_usl <- data.frame(matrix(NA, nrow=maxgates, ncol=maxlaterals))
-rownames(network_usl) <- paste0("G", 1:5)
-colnames(network_usl) <- paste0("L", 1:15)
-network_usl[,] <- mean(flowdfl[[1]]$H)
+network_hsd <- data.frame(matrix(NA, nrow=maxgates, ncol=maxlaterals))
+rownames(network_hsd) <- paste0("G", 1:5)
+colnames(network_hsd) <- paste0("L", 1:15)
+network_hsd[1,] <- 0.06
+network_hsd[2,] <- 0.08
+network_hsd[3,] <- 0.10
+network_hsd[4,] <- 0.12
+network_hsd[5,] <- 0.14
 
-network_g <- data.frame(matrix(NA, nrow=maxgates, ncol=maxlaterals))
-rownames(network_g) <- paste0("G", 1:5)
-colnames(network_g) <- paste0("L", 1:15)
-network_g[,] <- mean(flowdfl[[1]]$G)
+netvolsim <- netvoltruth <-  netflowsim <- netflowtruth <- vector()
+# netflowsim <- data.frame(matrix(NA, nrow=nsim, ncol=ngates))
+# netopvarflow <- replicate(n=ngates, expr=list())
+# netopvolsim <- data.frame(matrix(NA, nrow=nsim, ncol=ngates))
+# netopvarvol <- replicate(n=ngates, expr=list())
 
-
-netopflowsim <- data.frame(matrix(NA, nrow=nsim, ncol=ngates))
-netopvarflow <- replicate(n=ngates, expr=list())
-netopvolsim <- data.frame(matrix(NA, nrow=nsim, ncol=ngates))
-netopvarvol <- replicate(n=ngates, expr=list())
+networkresult <- replicate(n=maxlaterals, expr=list())
 
 for(l in 1:maxlaterals){ # need to talk to Nadya here!!!!!!!
   for(g in 1:maxgates){
-    # operational error
-    coefofvar <- 0.5
-    astdv <- coefofvar*modelcoef[[dd]][[5]]["A"]
-    anorm <- rnorm(nsim, modelcoef[[dd]][[5]]["A"], astdv)
-    bstdv <- coefofvar*modelcoef[[dd]][[5]]["B"]
-    bnorm <- rnorm(nsim, modelcoef[[dd]][[5]]["B"], bstdv)
-    cstdv <- coefofvar*modelcoef[[dd]][[5]]["C"]
-    cnorm <- rnorm(nsim, modelcoef[[dd]][[5]]["C"], cstdv)
-    ffstdv <- coefofvar*modelcoef[[dd]][[5]]["FF"]
-    ffnorm <- rnorm(nsim, modelcoef[[dd]][[5]]["FF"], ffstdv)
-    
-    # send a wave, let's say it arrives equally at all gates
-    network_usl[g,l]  
-    
-    # open gates at the same time and at different levels
-    network_g[g,l]
-    
-    # uncertainty in operational flow
-    for(i in 1:nsim){
-      netopflowsim[i,d] <- (anorm[i]*gnorm[i]^2 + bnorm[i]*gnorm[i] + cnorm[i])*(hnorm[i]^ffnorm[i])
-    }
-    netopvarflow[[dd]] <- sd(opflowsim[,d], na.rm=TRUE)^2
+    dd <- network_gatetype[g, l]
+    hsdn <- network_hsd[g, l]
+    networkresult[[l]][[g]] <- operationalerrorsim(dataindex=dd, coefofvar=0.01, optflowerrorp=0.12, gsd=0.1, hsd=hsdn, tsd=0.25)
   }
 }
 ```
