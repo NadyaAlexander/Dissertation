@@ -573,7 +573,7 @@ dev.off()
 ```
 
 # 7.0 Uncertainty at the Gate Level - Gates in Series
-```{r gate_network}
+```{r gate_network-toymod}
 # build a conceptual network for now, and later bring in the excel spreadsheet of the actual network
 # nrow is max number of gates, ncol is number of laterals
 maxgates <- 5
@@ -601,7 +601,7 @@ netvolsim <- netvoltruth <-  netflowsim <- netflowtruth <- vector()
 
 networkresult <- replicate(n=maxlaterals, expr=list())
 
-for(l in 1:maxlaterals){ # need to talk to Nadya here!!!!!!!
+for(l in 1:maxlaterals){
   for(g in 1:maxgates){
     dd <- network_gatetype[g, l]
     hsdn <- network_hsd[g, l]
@@ -610,11 +610,12 @@ for(l in 1:maxlaterals){ # need to talk to Nadya here!!!!!!!
 }
 ```
 
-# 8.0 Uncertainty at the Lateral Level - Laterals in Series
-```{r lateral_network}
+```{r gate_network_gcid}
 
 
 ```
+
+
 
 
 
