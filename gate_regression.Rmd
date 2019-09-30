@@ -679,7 +679,7 @@ gcid_abs_mean_errorcondition$ERRORCONDITIONNOTMET <- 1-gcid_abs_mean_errorcondit
 
 # plot min, max, mean, ... 
 library(ggplot2)
-png('outputs/mean_gcid_flowerror.png', width=20, height=8, units="in", pointsize=8, res=1200)
+png('outputs/mean_gcid_flowerror.png', width=20, height=8, units="in", pointsize=8, res=300)
   ggplot(gcid_abs_mean_flowerror, aes(x=LATNUM, y=GATENUM, size=MEANABSFLOWERROR, fill=MEANABSFLOWERROR)) +
     geom_point(shape = 21)+
     scale_fill_distiller(palette = "Spectral")+
@@ -688,7 +688,7 @@ png('outputs/mean_gcid_flowerror.png', width=20, height=8, units="in", pointsize
     ylab("Gate No.")
 dev.off()
 
-png('outputs/min_gcid_flowerror.png', width=20, height=8, units="in", pointsize=8, res=1200) 
+png('outputs/min_gcid_flowerror.png', width=20, height=8, units="in", pointsize=8, res=300) 
   ggplot(gcid_min_flowerror, aes(x=LATNUM, y=GATENUM, size=MINABSFLOWERROR, fill=MINABSFLOWERROR)) +
     geom_point(shape = 21)+
     scale_fill_distiller(palette = "Spectral")+
@@ -697,7 +697,7 @@ png('outputs/min_gcid_flowerror.png', width=20, height=8, units="in", pointsize=
     ylab("Gate No.")
 dev.off()
 
-png('outputs/max_gcid_flowerror.png', width=20, height=8, units="in", pointsize=8, res=1200)
+png('outputs/max_gcid_flowerror.png', width=20, height=8, units="in", pointsize=8, res=300)
   ggplot(gcid_max_flowerror, aes(x=LATNUM, y=GATENUM, size=MAXABSFLOWERROR, fill=MAXABSFLOWERROR)) +
     geom_point(shape = 21)+
     scale_fill_distiller(palette = "Spectral")+
