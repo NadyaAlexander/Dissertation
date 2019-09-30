@@ -37,6 +37,7 @@ remove(citethese)
 flowdf <- list()
 
 # check.names=FALSE removes leadinging X's from column names
+# this used to be "inputs/armco_gate36.csv", for now overwrite it and use the 18" gate data from Nadya
 flowdf[[1]] <- read.csv("inputs/armco_gate36.csv", header = TRUE, check.names = FALSE)
 flowdf[[2]] <- read.csv("inputs/armco_gate36.csv", header = TRUE, check.names = FALSE)
 flowdf[[3]] <- read.csv("inputs/armco_gate36.csv", header = TRUE, check.names = FALSE)
@@ -573,7 +574,7 @@ dev.off()
 ```
 
 # 7.0 Uncertainty at the Gate Level - Gates in Series
-```{r gate_network-toymod}
+```{r gate_network_toymod}
 # build a conceptual network for now, and later bring in the excel spreadsheet of the actual network
 # nrow is max number of gates, ncol is number of laterals
 maxgates <- 5
@@ -601,6 +602,7 @@ netvolsim <- netvoltruth <-  netflowsim <- netflowtruth <- vector()
 
 networkresult <- replicate(n=maxlaterals, expr=list())
 
+# NOTE: only changing the uncertainty in upstream level based on location in the network
 for(l in 1:maxlaterals){
   for(g in 1:maxgates){
     dd <- network_gatetype[g, l]
@@ -608,14 +610,134 @@ for(l in 1:maxlaterals){
     networkresult[[l]][[g]] <- operationalerrorsim(dataindex=dd, coefofvar=0.01, optflowerrorp=0.12, gsd=0.1, hsd=hsdn, tsd=0.25)
   }
 }
+
+# plot min, max, mean 
+
+# plot percentage of times that the error requirement of 6% is not met
 ```
 
 ```{r gate_network_gcid}
+# updated column names
+gcid <- read.csv("inputs/gcid_lateral_gates.csv")
+
+maxgates <- 72
+maxlaterals <- nrow(gcid)
+
+network_gatetype_gcid <- data.frame(matrix(NA, nrow=maxgates, ncol=maxlaterals))
+rownames(network_gatetype_gcid) <- paste0("G", 1:maxgates)
+colnames(network_gatetype_gcid) <- paste0("L", gcid$LATID)
+network_gatetype_gcid[,] <- 1 # assume they all are gatetype=1
+
+# first let's make a cumulative vector fro each lateral
+network_numgates_gcid <- network_gatetype_gcid
+network_numgates_gcid[,] <- NA
+for(i in 1:maxlaterals){
+  for(j in 1:gcid[i,"NUM_GATES_COL_COUNT"]){
+    network_numgates_gcid[j,i] <- j + gcid[i, "UPSTREAM_GATE_COUNT"] # j is the gate count on the branch and gcid[i, "UPSTREAM_GATE_COUNT"] is the parent gates
+  }
+}
+
+# make the uncertainty of the upstream level a function of the number of gates above the gate in the network
+network_hsd_gcid <- network_gatetype_gcid
+network_hsd_gcid[,] <- NA
+for(i in 1:maxlaterals){
+  for(j in 1:maxgates){
+    network_hsd_gcid[j,i] <- 0.01*network_numgates_gcid[j,i]+0.1
+  }
+}
+
+networkresult_gcid <- replicate(n=maxlaterals, expr=list())
+# NOTE: only changing the uncertainty in upstream level based on location in the network
+for(l in 1:maxlaterals){
+  for(g in 1:maxgates){
+    dd <- network_gatetype_gcid[g, l]
+    hsdn <- network_hsd_gcid[g, l]
+    networkresult_gcid[[l]][[g]] <- operationalerrorsim(dataindex=dd, coefofvar=0.01, optflowerrorp=0.12, gsd=0.1, hsd=hsdn, tsd=0.25)
+  }
+}
+
+# first let's put it in a dataframe
+gcid_results <- data.frame(do.call(rbind, unlist(networkresult_gcid, recursive=FALSE, use.names = TRUE)))
+gcid_results$LATNUM <- rep(1:maxlaterals, times=1, each=maxgates*nsim)
+gcid_results$GATENUM <- rep(1:maxgates, times=maxlaterals, each=nsim)
+gcid_results$LATID <- colnames(network_gatetype_gcid)[gcid_results$LATNUM]
+gcid_results$GATEID <- rownames(network_gatetype_gcid)[gcid_results$GATENUM]
+
+# when calculating mean error the positives and negatives cancel out, so use absolute error instead. Same with min and max, more meaningful to disregard the error sign.  
+gcid_mean_flowerror <- aggregate(FLOWERROR~LATNUM+LATID+GATENUM+GATEID, data=gcid_results, FUN=mean, na.rm=TRUE)
+colnames(gcid_mean_flowerror)[5] <- "MEANFLOWERROR"
+gcid_abs_mean_flowerror <- aggregate(abs(FLOWERROR)~LATNUM+LATID+GATENUM+GATEID, data=gcid_results, FUN=mean, na.rm=TRUE)
+colnames(gcid_abs_mean_flowerror)[5] <- "MEANABSFLOWERROR"
+gcid_min_flowerror <- aggregate(abs(FLOWERROR)~LATNUM+LATID+GATENUM+GATEID, data=gcid_results, FUN=min, na.rm=TRUE)
+colnames(gcid_min_flowerror)[5] <- "MINABSFLOWERROR"
+gcid_max_flowerror <- aggregate(abs(FLOWERROR)~LATNUM+LATID+GATENUM+GATEID, data=gcid_results, FUN=max, na.rm=TRUE)
+colnames(gcid_max_flowerror)[5] <- "MAXABSFLOWERROR"
+
+# probability that the error condition is met
+gcid_abs_mean_errorcondition <- aggregate(ERRORCONDITION~LATNUM+LATID+GATENUM+GATEID, data=gcid_results, FUN=mean, na.rm=TRUE)
+gcid_abs_mean_errorcondition$ERRORCONDITIONNOTMET <- 1-gcid_abs_mean_errorcondition$ERRORCONDITION
+
+# plot min, max, mean, ... 
+library(ggplot2)
+png('outputs/mean_gcid_flowerror.png', width=20, height=8, units="in", pointsize=8, res=1200)
+  ggplot(gcid_abs_mean_flowerror, aes(x=LATNUM, y=GATENUM, size=MEANABSFLOWERROR, fill=MEANABSFLOWERROR)) +
+    geom_point(shape = 21)+
+    scale_fill_distiller(palette = "Spectral")+
+    labs(fill = "Mean \nAbsolute \nFlow Error \n(cfs)", size="Mean \nAbsolute \nFlow Error \n(cfs)")+
+    xlab("Lateral No.") + 
+    ylab("Gate No.")
+dev.off()
+
+png('outputs/min_gcid_flowerror.png', width=20, height=8, units="in", pointsize=8, res=1200) 
+  ggplot(gcid_min_flowerror, aes(x=LATNUM, y=GATENUM, size=MINABSFLOWERROR, fill=MINABSFLOWERROR)) +
+    geom_point(shape = 21)+
+    scale_fill_distiller(palette = "Spectral")+
+    labs(fill = "Minimum \nAbsolute \nFlow Error \n(cfs)", size="Minimum \nAbsolute \nFlow Error \n(cfs)")+
+    xlab("Lateral No.") + 
+    ylab("Gate No.")
+dev.off()
+
+png('outputs/max_gcid_flowerror.png', width=20, height=8, units="in", pointsize=8, res=1200)
+  ggplot(gcid_max_flowerror, aes(x=LATNUM, y=GATENUM, size=MAXABSFLOWERROR, fill=MAXABSFLOWERROR)) +
+    geom_point(shape = 21)+
+    scale_fill_distiller(palette = "Spectral")+
+    labs(fill = "Maximum \nAbsolute \nFlow Error \n(cfs)", size="Maximum \nAbsolute \nFlow Error \n(cfs)")+
+    xlab("Lateral No.") + 
+    ylab("Gate No.")
+dev.off()
+
+# total error in the lateral
+
+# total error from the lateral heading measurements
+
+# case 3 is a wave is coming down and making more error.
+
+
+
+networkresult_gcid <- replicate(n=2, expr=list())
+for(l in 1:2){
+  for(g in 1:3){
+    dd <- network_gatetype_gcid[g, l]
+    hsdn <- network_hsd_gcid[g, l]
+    networkresult_gcid[[l]][[g]] <- operationalerrorsim(dataindex=dd, coefofvar=0.01, optflowerrorp=0.12, gsd=0.1, hsd=hsdn, tsd=0.25)
+  }
+}
+dfresult_gcid$LATNUM <- rep(1:2, times=1, each=300)
+dfresult_gcid$GATENUM <- rep(1:3, times=2, each=100)
+dfresult_gcid$LATID <- colnames(network_gatetype_gcid[1:3, 1:2])[dfresult_gcid$LATNUM]
+dfresult_gcid$GATEID <- rownames(network_gatetype_gcid[1:3, 1:2])[dfresult_gcid$GATENUM]
+```
+
+# 8.0 Uncertainty at the Lateral Level
+```{r lateral_uncertainty}
+# lateral head 
+# the device 
+# the volume that goes through it 
+# the accuracy 
+# This should give us the volumetric uncertainty
 
 
 ```
-
-
 
 
 
