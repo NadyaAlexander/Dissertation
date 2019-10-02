@@ -495,7 +495,8 @@ dev.off()
 ```{r uncertainty2}
 # volume = t[Q] = t[(aG^2 + bG + c)*H^(f)]
 # gsd, hsd, tsd are the standard deviations of G, H and t respectively
-operationalerrorsim <- function(dataindex, coefofvar=0.01, optflowerrorp=0.06, gsd=0.1, hsd=0.1, tsd=0.25){
+# note that optflowerrorp is the percentage 6 or 10 % error that is permissable. This error is related to the coefofvar allowed in the equation parameters. The largest allowed for 100% compliance with the 6% error is 0.02, and for 10% error is 0.05. 
+operationalerrorsim <- function(dataindex, coefofvar=0.02, optflowerrorp=0.06, gsd=0.1, hsd=0.1, tsd=0.25){
   d <- dataindex
   # we can add the ability to call different functions here, but for now just equation #5
   atrue <- modelcoef[[dd]][[5]]["A"] # assume the mean is the true value
@@ -547,7 +548,7 @@ operationalerrorsim <- function(dataindex, coefofvar=0.01, optflowerrorp=0.06, g
 
 operationresult <- replicate(n=ngates, expr=list())
 for(dd in 1:ngates){
-  operationresult[[dd]] <- operationalerrorsim(dataindex=dd, coefofvar=0.01, optflowerrorp=0.12)
+  operationresult[[dd]] <- operationalerrorsim(dataindex=dd, coefofvar=0.02, optflowerrorp=0.06)
 }
 ```
 
@@ -607,7 +608,7 @@ for(l in 1:maxlaterals){
   for(g in 1:maxgates){
     dd <- network_gatetype[g, l]
     hsdn <- network_hsd[g, l]
-    networkresult[[l]][[g]] <- operationalerrorsim(dataindex=dd, coefofvar=0.01, optflowerrorp=0.12, gsd=0.1, hsd=hsdn, tsd=0.25)
+    networkresult[[l]][[g]] <- operationalerrorsim(dataindex=dd, coefofvar=0.02, optflowerrorp=0.06, gsd=0.1, hsd=hsdn, tsd=0.25)
   }
 }
 
@@ -634,7 +635,7 @@ toymod_abs_mean_errorcondition$ERRORCONDITIONNOTMET <- 1-toymod_abs_mean_errorco
 
 # plot min, max, mean, ... 
 library(ggplot2)
-png('outputs/mean_toymodel_flowerror.png', width=6.5, height=3, units="in", pointsize=8, res=300)
+png('outputs/mean_toymodel_flowerror.png', width=6.5, height=4, units="in", pointsize=8, res=300)
   ggplot(toymod_abs_mean_flowerror, aes(x=LATNUM, y=GATENUM, size=MEANABSFLOWERROR, fill=MEANABSFLOWERROR)) +
     geom_point(shape = 21)+
     scale_fill_distiller(palette = "Spectral")+
@@ -643,7 +644,7 @@ png('outputs/mean_toymodel_flowerror.png', width=6.5, height=3, units="in", poin
     ylab("Gate No.")
 dev.off()
 
-png('outputs/min_toymodel_flowerror.png', width=6.5, height=3, units="in", pointsize=8, res=300) 
+png('outputs/min_toymodel_flowerror.png', width=6.5, height=4, units="in", pointsize=8, res=300) 
   ggplot(toymod_min_flowerror, aes(x=LATNUM, y=GATENUM, size=MINABSFLOWERROR, fill=MINABSFLOWERROR)) +
     geom_point(shape = 21)+
     scale_fill_distiller(palette = "Spectral")+
@@ -652,11 +653,20 @@ png('outputs/min_toymodel_flowerror.png', width=6.5, height=3, units="in", point
     ylab("Gate No.")
 dev.off()
 
-png('outputs/max_toymodel_flowerror.png', width=6.5, height=3, units="in", pointsize=8, res=300)
+png('outputs/max_toymodel_flowerror.png', width=6.5, height=4, units="in", pointsize=8, res=300)
   ggplot(toymod_max_flowerror, aes(x=LATNUM, y=GATENUM, size=MAXABSFLOWERROR, fill=MAXABSFLOWERROR)) +
     geom_point(shape = 21)+
     scale_fill_distiller(palette = "Spectral")+
     labs(fill = "Maximum \nAbsolute \nFlow Error \n(cfs)", size="Maximum \nAbsolute \nFlow Error \n(cfs)")+
+    xlab("Lateral No.") + 
+    ylab("Gate No.")
+dev.off()
+
+png('outputs/mean_noncompliancepercentage_toymodel_flowerror.png', width=6.5, height=4, units="in", pointsize=8, res=300)
+  ggplot(toymod_abs_mean_errorcondition, aes(x=LATNUM, y=GATENUM, size=ERRORCONDITIONNOTMET, fill=ERRORCONDITIONNOTMET)) +
+    geom_point(shape = 21)+
+    scale_fill_distiller(palette = "Spectral")+
+    labs(fill = "Percentage of \nNon-Compliance \n(N=100)", size="Percentage of \nNon-Compliance \n(N=100)")+
     xlab("Lateral No.") + 
     ylab("Gate No.")
 dev.off()
@@ -674,7 +684,7 @@ rownames(network_gatetype_gcid) <- paste0("G", 1:maxgates)
 colnames(network_gatetype_gcid) <- paste0("L", gcid$LATID)
 network_gatetype_gcid[,] <- 1 # assume they all are gatetype=1
 
-# first let's make a cumulative vector fro each lateral
+# first let's make a cumulative vector for each lateral
 network_numgates_gcid <- network_gatetype_gcid
 network_numgates_gcid[,] <- NA
 for(i in 1:maxlaterals){
@@ -682,25 +692,135 @@ for(i in 1:maxlaterals){
     network_numgates_gcid[j,i] <- j + gcid[i, "UPSTREAM_GATE_COUNT"] # j is the gate count on the branch and gcid[i, "UPSTREAM_GATE_COUNT"] is the parent gates
   }
 }
+```
 
-# make the uncertainty of the upstream level a function of the number of gates above the gate in the network
-network_hsd_gcid <- network_gatetype_gcid
-network_hsd_gcid[,] <- NA
+```{r gate_upstreamlvl_uncertainty_gcid}
+# make the uncertainty of the upstream level a function of the number of gates above the gate in the network, and include the uncertainty of a well behaved lateral vs. non-well behaved lateral.
+latlvl <- read.csv("inputs/lateral_levels_longformat.csv")
+
+png('outputs/lat_levels_density_48-1.png', width=6.5, height=4, units="in", pointsize=8, res=300) 
+ggplot(latlvl[latlvl$LATID=="48-1", ], aes(VALUE)) +
+  geom_density(alpha=0.5, position = "stack") +
+  geom_rug(aes(x = VALUE, y = 0), position = position_jitter(height = 0)) +
+  xlab("Lateral Levels") +
+  ylab("Density")
+dev.off()
+
+png('outputs/lat_levels_density_22-1.png', width=6.5, height=4, units="in", pointsize=8, res=300) 
+ggplot(latlvl[latlvl$LATID=="22-1", ], aes(VALUE)) +
+  geom_density(alpha=0.5, position = "stack") +
+  geom_rug(aes(x = VALUE, y = 0), position = position_jitter(height = 0)) +
+  xlab("Lateral Levels") +
+  ylab("Density")
+dev.off()
+
+png('outputs/lat_levels_density_21-4.png', width=6.5, height=4, units="in", pointsize=8, res=300) 
+ggplot(latlvl[latlvl$LATID=="21-4", ], aes(VALUE)) +
+  geom_density(alpha=0.5, position = "stack") +
+  geom_rug(aes(x = VALUE, y = 0), position = position_jitter(height = 0)) +
+  xlab("Lateral Levels") +
+  ylab("Density")
+dev.off()
+
+# CASEI: Well-behaved lateral, LATID=48-1
+mean(latlvl[latlvl$LATID=="48-1", "VALUE"])
+min(latlvl[latlvl$LATID=="48-1", "VALUE"])
+max(latlvl[latlvl$LATID=="48-1", "VALUE"])
+
+# CASEII: NOT Well-behaved lateral, LATID=22-1
+mean(latlvl[latlvl$LATID=="22-1", "VALUE"])
+min(latlvl[latlvl$LATID=="22-1", "VALUE"])
+max(latlvl[latlvl$LATID=="22-1", "VALUE"])
+
+# disregard LATID= 21-4 for now
+network_hsd_gcid_case1 <- network_hsd_gcid_case2 <- network_gatetype_gcid
+network_hsd_gcid_case1[,] <- NA
 for(i in 1:maxlaterals){
-  for(j in 1:maxgates){
-    network_hsd_gcid[j,i] <- 0.01*network_numgates_gcid[j,i]+0.1
+  for(j in 1:maxgates){ # this 0.01 value will have to be tweaked after running this a few times. 
+    network_hsd_gcid_case1[j,i] <- 0.01*network_numgates_gcid[j,i] + mean(latlvl[latlvl$LATID=="48-1", "VALUE"])
+    network_hsd_gcid_case2[j,i] <- 0.01*network_numgates_gcid[j,i] + mean(latlvl[latlvl$LATID=="22-1", "VALUE"])
   }
 }
 
-networkresult_gcid <- replicate(n=maxlaterals, expr=list())
+networkresult_gcid_case1 <- networkresult_gcid_case2 <- replicate(n=maxlaterals, expr=list())
 # NOTE: only changing the uncertainty in upstream level based on location in the network
 for(l in 1:maxlaterals){
   for(g in 1:maxgates){
     dd <- network_gatetype_gcid[g, l]
-    hsdn <- network_hsd_gcid[g, l]
-    networkresult_gcid[[l]][[g]] <- operationalerrorsim(dataindex=dd, coefofvar=0.01, optflowerrorp=0.12, gsd=0.1, hsd=hsdn, tsd=0.25)
+    # CASEI
+    hsdn <- network_hsd_gcid_case1[g, l]
+    networkresult_gcid_case1[[l]][[g]] <- operationalerrorsim(dataindex=dd, coefofvar=0.02, optflowerrorp=0.06, gsd=0.1, hsd=hsdn, tsd=0.25)
+    # CASEII
+    hsdn <- network_hsd_gcid_case2[g, l]
+    networkresult_gcid_case2[[l]][[g]] <- operationalerrorsim(dataindex=dd, coefofvar=0.02, optflowerrorp=0.06, gsd=0.1, hsd=hsdn, tsd=0.25)
   }
 }
+
+library(ggplot2)
+network_postprocessing <- function(data){
+  # first let's put it in a dataframe
+  gcid_results <- data.frame(do.call(rbind, unlist(data, recursive=FALSE, use.names = TRUE)))
+  gcid_results$LATNUM <- rep(1:maxlaterals, times=1, each=maxgates*nsim) # for plotting on the x axis
+  gcid_results$GATENUM <- rep(1:maxgates, times=maxlaterals, each=nsim) # for plotting on the y axis
+  gcid_results$LATID <- colnames(network_gatetype_gcid)[gcid_results$LATNUM]
+  gcid_results$GATEID <- rownames(network_gatetype_gcid)[gcid_results$GATENUM]
+  
+  # when calculating mean error the positives and negatives cancel out, so use absolute error instead. Same with min and max, more meaningful to disregard the error sign.  
+  gcid_mean_flowerror <- aggregate(FLOWERROR~LATNUM+LATID+GATENUM+GATEID, data=gcid_results, FUN=mean, na.rm=TRUE)
+  colnames(gcid_mean_flowerror)[5] <- "MEANFLOWERROR"
+  gcid_abs_mean_flowerror <- aggregate(abs(FLOWERROR)~LATNUM+LATID+GATENUM+GATEID, data=gcid_results, FUN=mean, na.rm=TRUE)
+  colnames(gcid_abs_mean_flowerror)[5] <- "MEANABSFLOWERROR"
+  gcid_min_flowerror <- aggregate(abs(FLOWERROR)~LATNUM+LATID+GATENUM+GATEID, data=gcid_results, FUN=min, na.rm=TRUE)
+  colnames(gcid_min_flowerror)[5] <- "MINABSFLOWERROR"
+  gcid_max_flowerror <- aggregate(abs(FLOWERROR)~LATNUM+LATID+GATENUM+GATEID, data=gcid_results, FUN=max, na.rm=TRUE)
+  colnames(gcid_max_flowerror)[5] <- "MAXABSFLOWERROR"
+  
+  # probability that the error condition is met
+  gcid_abs_mean_errorcondition <- aggregate(ERRORCONDITION~LATNUM+LATID+GATENUM+GATEID, data=gcid_results, FUN=mean, na.rm=TRUE)
+  gcid_abs_mean_errorcondition$ERRORCONDITIONNOTMET <- 1-gcid_abs_mean_errorcondition$ERRORCONDITION
+  
+  # plot min, max, mean, ... 
+  png('outputs/mean_gcid_flowerror.png', width=20, height=8, units="in", pointsize=8, res=300)
+    ggplot(gcid_abs_mean_flowerror, aes(x=LATNUM, y=GATENUM, size=MEANABSFLOWERROR, fill=MEANABSFLOWERROR)) +
+      geom_point(shape = 21)+
+      scale_fill_distiller(palette = "Spectral")+
+      labs(fill = "Mean \nAbsolute \nFlow Error \n(cfs)", size="Mean \nAbsolute \nFlow Error \n(cfs)")+
+      xlab("Lateral No.") + 
+      ylab("Gate No.")
+  dev.off()
+  
+  png('outputs/min_gcid_flowerror.png', width=20, height=8, units="in", pointsize=8, res=300) 
+    ggplot(gcid_min_flowerror, aes(x=LATNUM, y=GATENUM, size=MINABSFLOWERROR, fill=MINABSFLOWERROR)) +
+      geom_point(shape = 21)+
+      scale_fill_distiller(palette = "Spectral")+
+      labs(fill = "Minimum \nAbsolute \nFlow Error \n(cfs)", size="Minimum \nAbsolute \nFlow Error \n(cfs)")+
+      xlab("Lateral No.") + 
+      ylab("Gate No.")
+  dev.off()
+  
+  png('outputs/max_gcid_flowerror.png', width=20, height=8, units="in", pointsize=8, res=300)
+    ggplot(gcid_max_flowerror, aes(x=LATNUM, y=GATENUM, size=MAXABSFLOWERROR, fill=MAXABSFLOWERROR)) +
+      geom_point(shape = 21)+
+      scale_fill_distiller(palette = "Spectral")+
+      labs(fill = "Maximum \nAbsolute \nFlow Error \n(cfs)", size="Maximum \nAbsolute \nFlow Error \n(cfs)")+
+      xlab("Lateral No.") + 
+      ylab("Gate No.")
+  dev.off()
+  
+  png('outputs/mean_noncompliancepercentage_gcid_flowerror.png', width=20, height=8, units="in", pointsize=8, res=300)
+    ggplot(gcid_abs_mean_errorcondition, aes(x=LATNUM, y=GATENUM, size=ERRORCONDITIONNOTMET, fill=ERRORCONDITIONNOTMET)) +
+      geom_point(shape = 21)+
+      scale_fill_distiller(palette = "Spectral")+
+      labs(fill = "Percentage of \nNon-Compliance \n(N=100)", size="Percentage of \nNon-Compliance \n(N=100)")+
+      xlab("Lateral No.") + 
+      ylab("Gate No.")
+  dev.off()
+}
+
+network_postprocessing(networkresult_gcid_case1)
+network_postprocessing(networkresult_gcid_case2)
+
+
 
 # first let's put it in a dataframe
 gcid_results <- data.frame(do.call(rbind, unlist(networkresult_gcid, recursive=FALSE, use.names = TRUE)))
@@ -748,6 +868,15 @@ png('outputs/max_gcid_flowerror.png', width=20, height=8, units="in", pointsize=
     geom_point(shape = 21)+
     scale_fill_distiller(palette = "Spectral")+
     labs(fill = "Maximum \nAbsolute \nFlow Error \n(cfs)", size="Maximum \nAbsolute \nFlow Error \n(cfs)")+
+    xlab("Lateral No.") + 
+    ylab("Gate No.")
+dev.off()
+
+png('outputs/mean_noncompliancepercentage_gcid_flowerror.png', width=20, height=8, units="in", pointsize=8, res=300)
+  ggplot(gcid_abs_mean_errorcondition, aes(x=LATNUM, y=GATENUM, size=ERRORCONDITIONNOTMET, fill=ERRORCONDITIONNOTMET)) +
+    geom_point(shape = 21)+
+    scale_fill_distiller(palette = "Spectral")+
+    labs(fill = "Percentage of \nNon-Compliance \n(N=100)", size="Percentage of \nNon-Compliance \n(N=100)")+
     xlab("Lateral No.") + 
     ylab("Gate No.")
 dev.off()
