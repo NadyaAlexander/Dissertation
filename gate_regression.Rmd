@@ -38,10 +38,10 @@ flowdf <- list()
 
 # check.names=FALSE removes leadinging X's from column names
 # this used to be "inputs/armco_gate36.csv", for now overwrite it and use the 18" gate data from Nadya
-flowdf[[1]] <- read.csv("inputs/armco_gate18.csv", header = TRUE, check.names = FALSE)
-flowdf[[2]] <- read.csv("inputs/armco_gate18.csv", header = TRUE, check.names = FALSE)
-flowdf[[3]] <- read.csv("inputs/armco_gate18.csv", header = TRUE, check.names = FALSE)
-flowdf[[4]] <- read.csv("inputs/armco_gate18.csv", header = TRUE, check.names = FALSE)
+flowdf[[1]] <- read.csv("inputs/armco_gate18.csv", header = TRUE, check.names = FALSE, fileEncoding="UTF-8-BOM")
+flowdf[[2]] <- read.csv("inputs/armco_gate18.csv", header = TRUE, check.names = FALSE, fileEncoding="UTF-8-BOM")
+flowdf[[3]] <- read.csv("inputs/armco_gate18.csv", header = TRUE, check.names = FALSE, fileEncoding="UTF-8-BOM")
+flowdf[[4]] <- read.csv("inputs/armco_gate18.csv", header = TRUE, check.names = FALSE, fileEncoding="UTF-8-BOM")
 ngates <- length(flowdf)
 ```
 
@@ -595,12 +595,6 @@ network_hsd[3,] <- 0.10
 network_hsd[4,] <- 0.12
 network_hsd[5,] <- 0.14
 
-netvolsim <- netvoltruth <-  netflowsim <- netflowtruth <- vector()
-# netflowsim <- data.frame(matrix(NA, nrow=nsim, ncol=ngates))
-# netopvarflow <- replicate(n=ngates, expr=list())
-# netopvolsim <- data.frame(matrix(NA, nrow=nsim, ncol=ngates))
-# netopvarvol <- replicate(n=ngates, expr=list())
-
 networkresult <- replicate(n=maxlaterals, expr=list())
 
 # NOTE: only changing the uncertainty in upstream level based on location in the network
@@ -635,7 +629,7 @@ toymod_abs_mean_errorcondition$ERRORCONDITIONNOTMET <- 1-toymod_abs_mean_errorco
 
 # plot min, max, mean, ... 
 library(ggplot2)
-png('outputs/mean_toymodel_flowerror.png', width=6.5, height=4, units="in", pointsize=8, res=300)
+png('outputs/toymodel_mean_flowerror.png', width=6.5, height=4, units="in", pointsize=8, res=300)
   ggplot(toymod_abs_mean_flowerror, aes(x=LATNUM, y=GATENUM, size=MEANABSFLOWERROR, fill=MEANABSFLOWERROR)) +
     geom_point(shape = 21)+
     scale_fill_distiller(palette = "Spectral")+
@@ -644,7 +638,7 @@ png('outputs/mean_toymodel_flowerror.png', width=6.5, height=4, units="in", poin
     ylab("Gate No.")
 dev.off()
 
-png('outputs/min_toymodel_flowerror.png', width=6.5, height=4, units="in", pointsize=8, res=300) 
+png('outputs/toymodel_min_flowerror.png', width=6.5, height=4, units="in", pointsize=8, res=300) 
   ggplot(toymod_min_flowerror, aes(x=LATNUM, y=GATENUM, size=MINABSFLOWERROR, fill=MINABSFLOWERROR)) +
     geom_point(shape = 21)+
     scale_fill_distiller(palette = "Spectral")+
@@ -653,7 +647,7 @@ png('outputs/min_toymodel_flowerror.png', width=6.5, height=4, units="in", point
     ylab("Gate No.")
 dev.off()
 
-png('outputs/max_toymodel_flowerror.png', width=6.5, height=4, units="in", pointsize=8, res=300)
+png('outputs/toymodel_max_flowerror.png', width=6.5, height=4, units="in", pointsize=8, res=300)
   ggplot(toymod_max_flowerror, aes(x=LATNUM, y=GATENUM, size=MAXABSFLOWERROR, fill=MAXABSFLOWERROR)) +
     geom_point(shape = 21)+
     scale_fill_distiller(palette = "Spectral")+
@@ -662,7 +656,7 @@ png('outputs/max_toymodel_flowerror.png', width=6.5, height=4, units="in", point
     ylab("Gate No.")
 dev.off()
 
-png('outputs/mean_noncompliancepercentage_toymodel_flowerror.png', width=6.5, height=4, units="in", pointsize=8, res=300)
+png('outputs/toymodel_mean_noncompliancepercentage_flowerror.png', width=6.5, height=4, units="in", pointsize=8, res=300)
   ggplot(toymod_abs_mean_errorcondition, aes(x=LATNUM, y=GATENUM, size=ERRORCONDITIONNOTMET, fill=ERRORCONDITIONNOTMET)) +
     geom_point(shape = 21)+
     scale_fill_distiller(palette = "Spectral")+
@@ -681,7 +675,7 @@ maxlaterals <- nrow(gcid)
 
 network_gatetype_gcid <- data.frame(matrix(NA, nrow=maxgates, ncol=maxlaterals))
 rownames(network_gatetype_gcid) <- paste0("G", 1:maxgates)
-colnames(network_gatetype_gcid) <- paste0("L", gcid$LATID)
+colnames(network_gatetype_gcid) <- gcid$LATID
 network_gatetype_gcid[,] <- 1 # assume they all are gatetype=1
 
 # first let's make a cumulative vector for each lateral
@@ -698,6 +692,7 @@ for(i in 1:maxlaterals){
 # make the uncertainty of the upstream level a function of the number of gates above the gate in the network, and include the uncertainty of a well behaved lateral vs. non-well behaved lateral.
 latlvl <- read.csv("inputs/lateral_levels_longformat.csv")
 
+# first let's look at the densities of these laterals
 png('outputs/lat_levels_density_48-1.png', width=6.5, height=4, units="in", pointsize=8, res=300) 
 ggplot(latlvl[latlvl$LATID=="48-1", ], aes(VALUE)) +
   geom_density(alpha=0.5, position = "stack") +
@@ -721,44 +716,56 @@ ggplot(latlvl[latlvl$LATID=="21-4", ], aes(VALUE)) +
   xlab("Lateral Levels") +
   ylab("Density")
 dev.off()
+```
 
-# CASEI: Well-behaved lateral, LATID=48-1
+```{r gate_upstreamlvl_uncertainty_gcid_cases}
+# construct the cases
+# CASE I: Well-behaved lateral, LATID=48-1
 mean(latlvl[latlvl$LATID=="48-1", "VALUE"])
-min(latlvl[latlvl$LATID=="48-1", "VALUE"])
-max(latlvl[latlvl$LATID=="48-1", "VALUE"])
+sd(latlvl[latlvl$LATID=="48-1", "VALUE"])
+max(latlvl[latlvl$LATID=="48-1", "VALUE"]) - min(latlvl[latlvl$LATID=="48-1", "VALUE"])
 
-# CASEII: NOT Well-behaved lateral, LATID=22-1
+# CASE II: NOT Well-behaved lateral, LATID=22-1
 mean(latlvl[latlvl$LATID=="22-1", "VALUE"])
-min(latlvl[latlvl$LATID=="22-1", "VALUE"])
-max(latlvl[latlvl$LATID=="22-1", "VALUE"])
+sd(latlvl[latlvl$LATID=="22-1", "VALUE"])
+max(latlvl[latlvl$LATID=="22-1", "VALUE"]) - min(latlvl[latlvl$LATID=="22-1", "VALUE"])
 
-# disregard LATID= 21-4 for now
+# disregard LATID = 21-4 for now
+
 network_hsd_gcid_case1 <- network_hsd_gcid_case2 <- network_gatetype_gcid
 network_hsd_gcid_case1[,] <- NA
 for(i in 1:maxlaterals){
-  for(j in 1:maxgates){ # this 0.01 value will have to be tweaked after running this a few times. 
-    network_hsd_gcid_case1[j,i] <- 0.01*network_numgates_gcid[j,i] + mean(latlvl[latlvl$LATID=="48-1", "VALUE"])
-    network_hsd_gcid_case2[j,i] <- 0.01*network_numgates_gcid[j,i] + mean(latlvl[latlvl$LATID=="22-1", "VALUE"])
+  for(j in 1:maxgates){ # this 0.01 value will have to be tweaked after running this a few times. for now just adding the normalized standard deviation to the gate standard deviations
+    network_hsd_gcid_case1[j,i] <- 0.01*network_numgates_gcid[j,i] + sd(latlvl[latlvl$LATID=="48-1", "VALUE"])/mean(latlvl[latlvl$LATID=="48-1", "VALUE"])
+    network_hsd_gcid_case2[j,i] <- 0.01*network_numgates_gcid[j,i] + sd(latlvl[latlvl$LATID=="22-1", "VALUE"])/mean(latlvl[latlvl$LATID=="22-1", "VALUE"])
   }
 }
 
-networkresult_gcid_case1 <- networkresult_gcid_case2 <- replicate(n=maxlaterals, expr=list())
-# NOTE: only changing the uncertainty in upstream level based on location in the network
+# construct a run for each case, and each scenario. scenario A is for 6% error (0.02 coefofvar) and scenario B is for 10% error (0.05 coefoffar)
+networkresult_gcid_case1A <- networkresult_gcid_case2A <- networkresult_gcid_case1B <- networkresult_gcid_case2B <- replicate(n=maxlaterals, expr=list())
 for(l in 1:maxlaterals){
   for(g in 1:maxgates){
     dd <- network_gatetype_gcid[g, l]
-    # CASEI
+    # CASE I (well-behaved lateral), SCENARIO A (accurate)
     hsdn <- network_hsd_gcid_case1[g, l]
-    networkresult_gcid_case1[[l]][[g]] <- operationalerrorsim(dataindex=dd, coefofvar=0.02, optflowerrorp=0.06, gsd=0.1, hsd=hsdn, tsd=0.25)
-    # CASEII
+    networkresult_gcid_case1A[[l]][[g]] <- operationalerrorsim(dataindex=dd, coefofvar=0.02, optflowerrorp=0.06, gsd=0.1, hsd=hsdn, tsd=0.25)
+    # CASE II (not well-behaved lateral), SCENARIO A (accurate)
     hsdn <- network_hsd_gcid_case2[g, l]
-    networkresult_gcid_case2[[l]][[g]] <- operationalerrorsim(dataindex=dd, coefofvar=0.02, optflowerrorp=0.06, gsd=0.1, hsd=hsdn, tsd=0.25)
+    networkresult_gcid_case2A[[l]][[g]] <- operationalerrorsim(dataindex=dd, coefofvar=0.02, optflowerrorp=0.06, gsd=0.1, hsd=hsdn, tsd=0.25)
+    # CASE I (well-behaved lateral), SCENARIO B (less accurate)
+    hsdn <- network_hsd_gcid_case1[g, l]
+    networkresult_gcid_case1B[[l]][[g]] <- operationalerrorsim(dataindex=dd, coefofvar=0.05, optflowerrorp=0.10, gsd=0.1, hsd=hsdn, tsd=0.25)
+    # CASE II (not well-behaved lateral), SCENARIO B (less accurate)
+    hsdn <- network_hsd_gcid_case2[g, l]
+    networkresult_gcid_case2B[[l]][[g]] <- operationalerrorsim(dataindex=dd, coefofvar=0.05, optflowerrorp=0.10, gsd=0.1, hsd=hsdn, tsd=0.25)
   }
 }
+```
 
+```{r gate_upstreamlvl_uncertainty_gcid_postprocessing_plots}
 library(ggplot2)
-network_postprocessing <- function(data){
-  # first let's put it in a dataframe
+network_postprocessing <- function(data, casenum, scenario){
+  # first let's put the data calculated above in a dataframe
   gcid_results <- data.frame(do.call(rbind, unlist(data, recursive=FALSE, use.names = TRUE)))
   gcid_results$LATNUM <- rep(1:maxlaterals, times=1, each=maxgates*nsim) # for plotting on the x axis
   gcid_results$GATENUM <- rep(1:maxgates, times=maxlaterals, each=nsim) # for plotting on the y axis
@@ -779,125 +786,89 @@ network_postprocessing <- function(data){
   gcid_abs_mean_errorcondition <- aggregate(ERRORCONDITION~LATNUM+LATID+GATENUM+GATEID, data=gcid_results, FUN=mean, na.rm=TRUE)
   gcid_abs_mean_errorcondition$ERRORCONDITIONNOTMET <- 1-gcid_abs_mean_errorcondition$ERRORCONDITION
   
-  # plot min, max, mean, ... 
-  png('outputs/mean_gcid_flowerror.png', width=20, height=8, units="in", pointsize=8, res=300)
-    ggplot(gcid_abs_mean_flowerror, aes(x=LATNUM, y=GATENUM, size=MEANABSFLOWERROR, fill=MEANABSFLOWERROR)) +
-      geom_point(shape = 21)+
-      scale_fill_distiller(palette = "Spectral")+
-      labs(fill = "Mean \nAbsolute \nFlow Error \n(cfs)", size="Mean \nAbsolute \nFlow Error \n(cfs)")+
-      xlab("Lateral No.") + 
-      ylab("Gate No.")
-  dev.off()
-  
-  png('outputs/min_gcid_flowerror.png', width=20, height=8, units="in", pointsize=8, res=300) 
-    ggplot(gcid_min_flowerror, aes(x=LATNUM, y=GATENUM, size=MINABSFLOWERROR, fill=MINABSFLOWERROR)) +
-      geom_point(shape = 21)+
-      scale_fill_distiller(palette = "Spectral")+
-      labs(fill = "Minimum \nAbsolute \nFlow Error \n(cfs)", size="Minimum \nAbsolute \nFlow Error \n(cfs)")+
-      xlab("Lateral No.") + 
-      ylab("Gate No.")
-  dev.off()
-  
-  png('outputs/max_gcid_flowerror.png', width=20, height=8, units="in", pointsize=8, res=300)
-    ggplot(gcid_max_flowerror, aes(x=LATNUM, y=GATENUM, size=MAXABSFLOWERROR, fill=MAXABSFLOWERROR)) +
-      geom_point(shape = 21)+
-      scale_fill_distiller(palette = "Spectral")+
-      labs(fill = "Maximum \nAbsolute \nFlow Error \n(cfs)", size="Maximum \nAbsolute \nFlow Error \n(cfs)")+
-      xlab("Lateral No.") + 
-      ylab("Gate No.")
-  dev.off()
-  
-  png('outputs/mean_noncompliancepercentage_gcid_flowerror.png', width=20, height=8, units="in", pointsize=8, res=300)
-    ggplot(gcid_abs_mean_errorcondition, aes(x=LATNUM, y=GATENUM, size=ERRORCONDITIONNOTMET, fill=ERRORCONDITIONNOTMET)) +
-      geom_point(shape = 21)+
-      scale_fill_distiller(palette = "Spectral")+
-      labs(fill = "Percentage of \nNon-Compliance \n(N=100)", size="Percentage of \nNon-Compliance \n(N=100)")+
-      xlab("Lateral No.") + 
-      ylab("Gate No.")
-  dev.off()
-}
-
-network_postprocessing(networkresult_gcid_case1)
-network_postprocessing(networkresult_gcid_case2)
-
-
-
-# first let's put it in a dataframe
-gcid_results <- data.frame(do.call(rbind, unlist(networkresult_gcid, recursive=FALSE, use.names = TRUE)))
-gcid_results$LATNUM <- rep(1:maxlaterals, times=1, each=maxgates*nsim) # for plotting on the x axis
-gcid_results$GATENUM <- rep(1:maxgates, times=maxlaterals, each=nsim) # for plotting on the y axis
-gcid_results$LATID <- colnames(network_gatetype_gcid)[gcid_results$LATNUM]
-gcid_results$GATEID <- rownames(network_gatetype_gcid)[gcid_results$GATENUM]
-
-# when calculating mean error the positives and negatives cancel out, so use absolute error instead. Same with min and max, more meaningful to disregard the error sign.  
-gcid_mean_flowerror <- aggregate(FLOWERROR~LATNUM+LATID+GATENUM+GATEID, data=gcid_results, FUN=mean, na.rm=TRUE)
-colnames(gcid_mean_flowerror)[5] <- "MEANFLOWERROR"
-gcid_abs_mean_flowerror <- aggregate(abs(FLOWERROR)~LATNUM+LATID+GATENUM+GATEID, data=gcid_results, FUN=mean, na.rm=TRUE)
-colnames(gcid_abs_mean_flowerror)[5] <- "MEANABSFLOWERROR"
-gcid_min_flowerror <- aggregate(abs(FLOWERROR)~LATNUM+LATID+GATENUM+GATEID, data=gcid_results, FUN=min, na.rm=TRUE)
-colnames(gcid_min_flowerror)[5] <- "MINABSFLOWERROR"
-gcid_max_flowerror <- aggregate(abs(FLOWERROR)~LATNUM+LATID+GATENUM+GATEID, data=gcid_results, FUN=max, na.rm=TRUE)
-colnames(gcid_max_flowerror)[5] <- "MAXABSFLOWERROR"
-
-# probability that the error condition is met
-gcid_abs_mean_errorcondition <- aggregate(ERRORCONDITION~LATNUM+LATID+GATENUM+GATEID, data=gcid_results, FUN=mean, na.rm=TRUE)
-gcid_abs_mean_errorcondition$ERRORCONDITIONNOTMET <- 1-gcid_abs_mean_errorcondition$ERRORCONDITION
-
-# plot min, max, mean, ... 
-library(ggplot2)
-png('outputs/mean_gcid_flowerror.png', width=20, height=8, units="in", pointsize=8, res=300)
-  ggplot(gcid_abs_mean_flowerror, aes(x=LATNUM, y=GATENUM, size=MEANABSFLOWERROR, fill=MEANABSFLOWERROR)) +
+  # plot min, max, mean, ...
+  gg1 <- ggplot(gcid_abs_mean_flowerror, aes(x=LATNUM, y=GATENUM, size=MEANABSFLOWERROR, fill=MEANABSFLOWERROR)) +
     geom_point(shape = 21)+
     scale_fill_distiller(palette = "Spectral")+
     labs(fill = "Mean \nAbsolute \nFlow Error \n(cfs)", size="Mean \nAbsolute \nFlow Error \n(cfs)")+
     xlab("Lateral No.") + 
     ylab("Gate No.")
-dev.off()
-
-png('outputs/min_gcid_flowerror.png', width=20, height=8, units="in", pointsize=8, res=300) 
-  ggplot(gcid_min_flowerror, aes(x=LATNUM, y=GATENUM, size=MINABSFLOWERROR, fill=MINABSFLOWERROR)) +
+  
+  png(paste0('outputs/gcid_mean_flowerror_C', casenum, 'S', scenario , '.png'), width=20, height=8, units="in", pointsize=8, res=300)
+    plot(gg1)
+  dev.off()
+  
+  gg2 <- ggplot(gcid_min_flowerror, aes(x=LATNUM, y=GATENUM, size=MINABSFLOWERROR, fill=MINABSFLOWERROR)) +
     geom_point(shape = 21)+
     scale_fill_distiller(palette = "Spectral")+
     labs(fill = "Minimum \nAbsolute \nFlow Error \n(cfs)", size="Minimum \nAbsolute \nFlow Error \n(cfs)")+
     xlab("Lateral No.") + 
     ylab("Gate No.")
-dev.off()
+  
+  png(paste0('outputs/gcid_min_flowerror_C', casenum, 'S', scenario , '.png'), width=20, height=8, units="in", pointsize=8, res=300) 
+    plot(gg2)
+  dev.off()
 
-png('outputs/max_gcid_flowerror.png', width=20, height=8, units="in", pointsize=8, res=300)
-  ggplot(gcid_max_flowerror, aes(x=LATNUM, y=GATENUM, size=MAXABSFLOWERROR, fill=MAXABSFLOWERROR)) +
+  gg3 <- ggplot(gcid_max_flowerror, aes(x=LATNUM, y=GATENUM, size=MAXABSFLOWERROR, fill=MAXABSFLOWERROR)) +
     geom_point(shape = 21)+
     scale_fill_distiller(palette = "Spectral")+
     labs(fill = "Maximum \nAbsolute \nFlow Error \n(cfs)", size="Maximum \nAbsolute \nFlow Error \n(cfs)")+
     xlab("Lateral No.") + 
     ylab("Gate No.")
-dev.off()
-
-png('outputs/mean_noncompliancepercentage_gcid_flowerror.png', width=20, height=8, units="in", pointsize=8, res=300)
-  ggplot(gcid_abs_mean_errorcondition, aes(x=LATNUM, y=GATENUM, size=ERRORCONDITIONNOTMET, fill=ERRORCONDITIONNOTMET)) +
+  
+  png(paste0('outputs/gcid_max_flowerror_C', casenum, 'S', scenario , '.png'), width=20, height=8, units="in", pointsize=8, res=300)
+    plot(gg3)
+  dev.off()
+  
+  gg4 <- ggplot(gcid_abs_mean_errorcondition, aes(x=LATNUM, y=GATENUM, size=ERRORCONDITIONNOTMET, fill=ERRORCONDITIONNOTMET)) +
     geom_point(shape = 21)+
     scale_fill_distiller(palette = "Spectral")+
     labs(fill = "Percentage of \nNon-Compliance \n(N=100)", size="Percentage of \nNon-Compliance \n(N=100)")+
     xlab("Lateral No.") + 
     ylab("Gate No.")
-dev.off()
+    
+  png(paste0('outputs/gcid_mean_noncompliancepercentage_flowerror_C', casenum, 'S', scenario , '.png'), width=20, height=8, units="in", pointsize=8, res=300)
+    plot(gg4)
+  dev.off()
+}
+
+network_postprocessing(networkresult_gcid_case1A, "1", "A")
+network_postprocessing(networkresult_gcid_case2A, "2", "A")
+network_postprocessing(networkresult_gcid_case1B, "1", "B")
+network_postprocessing(networkresult_gcid_case2B, "2", "B")
 ```
 
-# 8.0 Uncertainty at the Lateral Level
-```{r lateral_uncertainty}
-# lateral head 
-# the device 
-# the volume that goes through it 
-# the accuracy 
-# This should give us the volumetric uncertainty
+# 8.0 Uncertainty at the Lateral Level Disaggregated 
+## 8.1 Disaggregated Uniformily
+```{r lateral_uncertainty_disaggregated}
+lateralflow <- read.csv("inputs/lateral_acre_flow.csv")
+lateralflow <- merge(lateralflow, gcid[, c("LATID", "NUM_GATES_COL_COUNT")], by="LATID")
+lateralflow$FLOW_PER_GATE <- lateralflow$WATER_DELIVERED_AF/lateralflow$NUM_GATES_COL_COUNT
 
-# total error in the lateral
+network_disaggregated_flow <- function(data, casenum, scenario){
+  # first let's put the results in a dataframe to calculate the percentage of error at each gate
+  gcid_results <- data.frame(do.call(rbind, unlist(data, recursive=FALSE, use.names = TRUE)))
+  gcid_results$LATNUM <- rep(1:maxlaterals, times=1, each=maxgates*nsim) # for plotting on the x axis
+  gcid_results$GATENUM <- rep(1:maxgates, times=maxlaterals, each=nsim) # for plotting on the y axis
+  gcid_results$LATID <- colnames(network_gatetype_gcid)[gcid_results$LATNUM]
+  gcid_results$GATEID <- rownames(network_gatetype_gcid)[gcid_results$GATENUM]
+  gcid_results$FLOWERRORP <- gcid_results$FLOWERROR/gcid_results$FLOWTRUTH
+  
+  # aggregate the mean error percentage 
+  gcid_mean_flowerrorp <- aggregate(FLOWERRORP~LATNUM+LATID+GATENUM+GATEID, data=gcid_results, FUN=mean, na.rm=TRUE)
+  colnames(gcid_mean_flowerrorp)[5] <- "MEANFLOWERRORPERCENT"
+  
+  lateralflow <- merge(lateralflow, gcid_mean_flowerrorp, by="LATID")
+  lateralflow$FLOWERROR_PER_GATE <- lateralflow$FLOW_PER_GATE*lateralflow$MEANFLOWERRORPERCENT
+  write.csv(lateralflow, paste0("outputs/lateral_flow_disaggregate_uniformly_C", casenum, "S", scenario, ".csv"))
+}
 
-# total error from the lateral heading measurements
-
-# case 3 is a wave is coming down and making more error.
-
+network_disaggregated_flow(networkresult_gcid_case1A, "1", "A")
+network_disaggregated_flow(networkresult_gcid_case2A, "2", "A")
+network_disaggregated_flow(networkresult_gcid_case1B, "1", "B")
+network_disaggregated_flow(networkresult_gcid_case2B, "2", "B")
 ```
 
-
+## 8.1 Disaggregated By Service Area
 
 
