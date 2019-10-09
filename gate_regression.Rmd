@@ -1,33 +1,37 @@
 ---
 title: "gate_regression"
-output: html_document
+author: "Nadya Alexander"
+date: "September 10th, 2019"
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, results = "hide", eval=FALSE)
 ```
 
 # Citations
 ```{r citations}
-# cite R 
-citation()
-toBibtex(citation())
-
-# cite R studio
-RStudio.Version()
-
-# cite packages
-citethese <- c("nls2", "reshape2", "hydroGOF")
-
-for(i in seq_along(citethese)){
-  x <- citation(citethese[i])
-  print(x)
-  # print(toBibtex(x))
-}
-
-remove(x)
-remove(i)
-remove(citethese)
+# # cite R 
+# citation()
+# toBibtex(citation())
+# 
+# # cite R studio
+# RStudio.Version()
+# 
+# # cite packages
+# citethese <- c("nls2", "reshape2", "hydroGOF")
+# 
+# for(i in seq_along(citethese)){
+#   x <- citation(citethese[i])
+#   print(x)
+#   # print(toBibtex(x))
+# }
+# 
+# remove(x)
+# remove(i)
+# remove(citethese)
 ```
 
 # 1.0 Data 
