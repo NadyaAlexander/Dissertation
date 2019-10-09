@@ -739,8 +739,8 @@ network_hsd_gcid_case1[,] <- network_hsd_gcid_case2[,] <- NA
 for(i in 1:maxlaterals){
   for(j in 1:maxgates){ # this 0.01 value will have to be tweaked after running this a few times. for now just adding the normalized standard deviation to the gate standard deviations. 
     # WARNING!! NOTE!!! multiplied the normalized sd by ...
-    network_hsd_gcid_case1[j,i] <- 0.01*network_numgates_gcid[j,i] + sd(latlvl[latlvl$LATID=="48-1", "VALUE"])/mean(latlvl[latlvl$LATID=="48-1", "VALUE"])*1
-    network_hsd_gcid_case2[j,i] <- 0.01*network_numgates_gcid[j,i] + sd(latlvl[latlvl$LATID=="22-1", "VALUE"])/mean(latlvl[latlvl$LATID=="22-1", "VALUE"])*1
+    network_hsd_gcid_case1[j,i] <- ((0.01*network_numgates_gcid[j,i])^2 + (sd(latlvl[latlvl$LATID=="48-1", "VALUE"])/mean(latlvl[latlvl$LATID=="48-1", "VALUE"])*1)^2)^0.5
+    network_hsd_gcid_case2[j,i] <- ((0.01*network_numgates_gcid[j,i])^2 + (sd(latlvl[latlvl$LATID=="22-1", "VALUE"])/mean(latlvl[latlvl$LATID=="22-1", "VALUE"])*1)^2)^0.5
   }
 }
 
@@ -979,8 +979,9 @@ network_hsd_gcid_case1[,] <- network_hsd_gcid_case2[,] <- NA
 networkoperationalerrorsim <- function(alpha1=0.01, alpha2=0.01, beta1=1, beta2=1){
   for(i in 1:maxlaterals){
     for(j in 1:maxgates){ 
-      network_hsd_gcid_case1[j,i] <- alpha1*network_numgates_gcid[j,i] + sd(latlvl[latlvl$LATID=="48-1", "VALUE"])/mean(latlvl[latlvl$LATID=="48-1", "VALUE"])*beta1
-      network_hsd_gcid_case2[j,i] <- alpha2*network_numgates_gcid[j,i] + sd(latlvl[latlvl$LATID=="22-1", "VALUE"])/mean(latlvl[latlvl$LATID=="22-1", "VALUE"])*beta2
+      # assuming these errors are independent of one another, therefore sum the squares and take a square root
+      network_hsd_gcid_case1[j,i] <- ((alpha1*network_numgates_gcid[j,i])^2 + (sd(latlvl[latlvl$LATID=="48-1", "VALUE"])/mean(latlvl[latlvl$LATID=="48-1", "VALUE"])*beta1)^2)^0.5
+      network_hsd_gcid_case2[j,i] <- ((alpha2*network_numgates_gcid[j,i])^2 + (sd(latlvl[latlvl$LATID=="22-1", "VALUE"])/mean(latlvl[latlvl$LATID=="22-1", "VALUE"])*beta2)^2)^0.5
     }
   }
   
@@ -1026,4 +1027,4 @@ networkoperationalerrorsim(alpha1=0.05, alpha2=0.05, beta1=1, beta2=5)
 
 ## 8.1 Disaggregated By Service Area
 
-
+ 
