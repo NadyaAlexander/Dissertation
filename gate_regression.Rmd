@@ -175,7 +175,6 @@ for(dd in 1:ngates){
 ```
 
 # 3.0 Model Stats
-
 ```{r gof_functions_reweritten}
 # library(hydroGOF) # this is giving wrong functions, do not load it in make sure the search path is clear
 goffuncs <- list.files("libraries/HydroGOFm/R")
@@ -202,20 +201,6 @@ for(dd in 1:ngates){
     
     # use the hydroGOF package to calculate model measures of fit
     modelstats[[dd]][[m]] <- gof(modelpred[[dd]][[m]], flowdfl[[dd]]$LOGFLOW)
-    
-    # # no need to do all of this now because the stats package does it all for us
-    # # fit an lm to pred vs. obs to calculate b
-    # lmmod <- lm(modelpred[[dd]][[m]]~flowdfl[[dd]]$LOGFLOW)
-    # 
-    # # calculate bR2 or bias-corrected R^2
-    # # For slope greater than one in the predicted vs. observed graph (meaning you are overpredicting), use the code below. It switches the y and x in the linear model and gives you the inverse slope, which is the R^2 (corrects over-prediction)
-    # if(lmmod$coefficients[2]>1){
-    #   lmmod <- lm(flowdfl[[dd]]$LOGFLOW~modelpred[[dd]][[m]])
-    # }
-    # 
-    # modelstats_b[[dd]][[m]] <- lmmod$coefficients[2]
-    # modelstats_r2[[dd]][[m]] <- r2(modelpred[[dd]][[m]], flowdfl[[dd]]$LOGFLOW)
-    # modelstats_br2[[dd]][[m]] <- modelstats_b[[dd]][[m]]*modelstats_r2[[dd]][[m]]
   }
 }
 ```
