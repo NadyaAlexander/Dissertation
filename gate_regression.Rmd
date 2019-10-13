@@ -882,6 +882,8 @@ network_hsd[5,] <- 0.14
 networkresult <- replicate(n=maxlaterals, expr=list())
 
 # NOTE: only changing the uncertainty in upstream level based on location in the network
+# change nsim
+nsim <- 1000
 for(l in 1:maxlaterals){
   for(g in 1:maxgates){
     dd <- network_gatetype[g, l]
@@ -952,6 +954,9 @@ dev.off()
 
 ## 7.2 GCID Network
 ```{r gate_network_gcid}
+# change nsim back
+nsim <- 100
+
 # updated column names
 gcid <- read.csv("inputs/gcid_lateral_gates.csv")
 
