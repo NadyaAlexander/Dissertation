@@ -855,6 +855,27 @@ png('outputs/operational_error_sensitivity_analysis/operational_error_sensitvity
 dev.off()
 
 # How to depict this in one graph?
+
+# writing to csv 
+operationresults_to_csv <- function(listtoflatten){
+  operationresultdf <- data.frame()
+  for (i in 1:ngates){
+    list_flat <- data.frame(do.call("rbind", listtoflatten[[i]]))
+    list_flat$CV_SD <- rep(cvrange, 1, each=100)
+    list_flat$NGATES <- i
+    operationresultdf <- rbind(operationresultdf, list_flat)
+  }
+  write.csv(operationresultdf, paste0("outputs/operational_error_sensitivity_analysis/", deparse(substitute(listtoflatten)), ".csv"), row.names = FALSE)
+}
+
+operationresults_to_csv(operationresult_sa_all)
+operationresults_to_csv(operationresult_sa_a)
+operationresults_to_csv(operationresult_sa_b)
+operationresults_to_csv(operationresult_sa_c)
+operationresults_to_csv(operationresult_sa_ff)
+operationresults_to_csv(operationresult_sa_g)
+operationresults_to_csv(operationresult_sa_h)
+operationresults_to_csv(operationresult_sa_t)
 ```
 
 # 7.0 Uncertainty at the Gate Level - Gates in Series
