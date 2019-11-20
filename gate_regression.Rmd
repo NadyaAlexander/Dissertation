@@ -35,7 +35,7 @@ knitr::opts_chunk$set(echo = TRUE, results = "hide", eval=FALSE)
 ```
 
 # 1.0 Data 
-## 1.1 Data Gathering
+## 1.1 Data Gathering-- Table of Flows Through a Gate Dependent on Upstream Level (H) and Gate Openning (G)
 ```{r datagathering}
 # put all the flow data from the different type of gates here
 flowdf <- list()
@@ -70,7 +70,7 @@ head(flowdfl[[ngates]])
 tail(flowdfl[[ngates]])
 ```
 
-# 2.0 Model Simulations
+# 2.0 Fitting Gate Flow Equations
 models will come in 8 forms, complex to simple.
 data will come in 4 forms, for each gate type. (subject to change)
 Therefore, we will have 8*4=32 models. (subject to change)
@@ -78,6 +78,7 @@ Therefore, we will have 8*4=32 models. (subject to change)
 ```{r simulations} 
 library(nls2)
 
+# Don't need this chunk, only needed to diagnose when the nls function fails
 # note these models were only written for one flow dataframe: flowdf[[1]]
 # attempt 1: model form is 
 # Q = (aG^2 + bG + c)*H^(dG^2 + eG + f)
@@ -108,6 +109,7 @@ modelsim <- nls(LOGFLOW~log(C)+(D*G^2+E*G+FF)*log(H), data=flowdfl[[1]], start=l
 # log[Q] = log[(aG^2 + bG + c)*H^(f)]
 # log[Q] = log[(aG^2 + bG + c)] +(f)*log[H]
 modelsim <- nls(LOGFLOW~log(A*G^2+B*G+C)+(FF)*log(H), data=flowdfl[[1]], start=list(A=0, B=0.5, C=2.5, FF=0.5))
+modelsim <- nls(FLOW~(A*G^2+B*G+C)*(H^FF), data=flowdfl[[1]], start=list(A=0, B=0.5, C=2.5, FF=0.5))
 
 # attempt 6: model form is
 # Q = (c)*H^(eG + f)
@@ -132,32 +134,42 @@ modelsim
 ```
 
 ```{r siminputs}
-# check these with Nadya
+# # model formulas, log format
+# formulastring <- list()
+# formulastring[[1]] <- "LOGFLOW ~log(A*G^2+B*G+C)+(D*G^2+E*G+FF)*log(H)"
+# formulastring[[2]] <- "LOGFLOW ~log(B*G+C)+(D*G^2+E*G+FF)*log(H)"
+# formulastring[[3]] <- "LOGFLOW ~log(A*G^2+B*G+C)+(E*G+FF)*log(H)"
+# formulastring[[4]] <- "LOGFLOW ~log(C)+(D*G^2+E*G+FF)*log(H)"
+# formulastring[[5]] <- "LOGFLOW ~log(A*G^2+B*G+C)+(FF)*log(H)"
+# formulastring[[6]] <- "LOGFLOW ~log(C)+(E*G+FF)*log(H)"
+# formulastring[[7]] <- "LOGFLOW ~log(B*G+C)+(FF)*log(H)"
+# formulastring[[8]] <- "LOGFLOW ~log(G)+(FF)*log(H)"
 
-# model formulas
+# model formulas, use this becuase nls can handle non linear modeling!
 formulastring <- list()
-formulastring[[1]] <- "LOGFLOW ~log(A*G^2+B*G+C)+(D*G^2+E*G+FF)*log(H)"
-formulastring[[2]] <- "LOGFLOW ~log(B*G+C)+(D*G^2+E*G+FF)*log(H)"
-formulastring[[3]] <- "LOGFLOW ~log(A*G^2+B*G+C)+(E*G+FF)*log(H)"
-formulastring[[4]] <- "LOGFLOW ~log(C)+(D*G^2+E*G+FF)*log(H)"
-formulastring[[5]] <- "LOGFLOW ~log(A*G^2+B*G+C)+(FF)*log(H)"
-formulastring[[6]] <- "LOGFLOW ~log(C)+(E*G+FF)*log(H)"
-formulastring[[7]] <- "LOGFLOW ~log(B*G+C)+(FF)*log(H)"
-formulastring[[8]] <- "LOGFLOW ~log(G)+(FF)*log(H)"
+formulastring[[1]] <- "FLOW ~(A*G^2+B*G+C)*(H^(D*G^2+E*G+FF))"
+formulastring[[2]] <- "FLOW ~(B*G+C)*(H^(D*G^2+E*G+FF))"
+formulastring[[3]] <- "FLOW ~(A*G^2+B*G+C)*(H^(E*G+FF))"
+formulastring[[4]] <- "FLOW ~(C)*(H^(D*G^2+E*G+FF))"
+formulastring[[5]] <- "FLOW ~(A*G^2+B*G+C)*(H^(FF))"
+formulastring[[6]] <- "FLOW ~(C)*(H^(E*G+FF))"
+formulastring[[7]] <- "FLOW ~(B*G+C)*(H^FF)"
+formulastring[[8]] <- "FLOW ~(G)*log(H^FF)"
 nformulas <- length(formulastring)
-  
-# term starts:    attempt No.1    2   3    4   5    6   7   8          
-termstart <- data.frame( A=c(0,   NA, 0,   NA, 0,   NA, NA, NA), 
-                         B=c(0.5, 1,  0.5, NA, 0.5, NA, 1,  NA), 
-                         C=c(2,   1,  2.5, 1,  2.5, 1,  1,  NA), 
-                         D=c(0,   1,  NA,  1,  NA,  NA, NA, NA), 
-                         E=c(0,   1,  0,   1,  NA,  1,  NA, NA), 
-                        FF=c(0.5, 1,  0.5, 1,  0.5, 1,  1,  1))
+
+# term starts:    attempt No.1    2     3    4    5    6    7    8          
+termstart <- data.frame( A=c(0,   NA,   0,   NA,  0,   NA,  NA,  NA), 
+                         B=c(0.5, 0.5,  0.5, NA,  0,   NA,  0.5, NA), 
+                         C=c(2,   1,    2.5, 1,   2.5, 1,   1,   NA), 
+                         D=c(0,   0,    NA,  0,   NA,  NA,  NA,  NA), 
+                         E=c(0,   0,    0,   0,   NA,  0,   NA,  NA), 
+                        FF=c(0.5, 0.5,  0.5, 0.5, 0.5, 0.5, 0.5, 0.5))
 ```
 
 ```{r simfunction} 
+# optim library? 
 modelsim <- function(data, formulastring, termstart){
-  nls(as.formula(formulastring), data=data, start=termstart)
+  nls(as.formula(formulastring), data=data, start=termstart) # change here!!!
 }
 
 # d for the number of flow dataframes
@@ -174,7 +186,7 @@ for(dd in 1:ngates){
 }
 ```
 
-# 3.0 Model Stats
+# 3.0 Gate Flow Fitting Performance
 ```{r gof_functions_reweritten}
 # library(hydroGOF) # this is giving wrong functions, do not load it in make sure the search path is clear
 goffuncs <- list.files("libraries/HydroGOFm/R")
@@ -264,19 +276,21 @@ for(dd in 1:ngates){
 write.csv(modelcsv, "outputs/gate_equation_modeling2.csv", row.names=FALSE)
 ```
 
-# 4.0 Model Plots
+# 4.0 Gate Flow Fitting Plots
 ```{r model_plots}
 # paste the equation for flow (use formula string) inside the plots, so we know what equation it was modeling without having to go back and forth
+
+# modified this for formulastrings that are in regular format not log format!
 for(dd in 1:ngates){
   for (m in 1:nformulas){
     png(paste0("outputs/obspreplots/ovp_d", dd, "_m", m, ".png"), width=3.25, height=2.85, units="in", pointsize=8, res=1200)
-      plot(flowdfl[[dd]]$LOGFLOW, modelpred[[dd]][[m]], ylab="Observed Log Flow", xlab="Predicted Log Flow", pch=19)
+      plot(flowdfl[[dd]]$FLOW, modelpred[[dd]][[m]], ylab="Observed Flow", xlab="Predicted Flow", pch=19)
       
       # add line for the perfect fit
       abline(0,1, col="grey80", lty=2, lwd=2)
       
       # add line for linear fit
-      lmmod <- lm(modelpred[[dd]][[m]]~flowdfl[[dd]]$LOGFLOW)
+      lmmod <- lm(modelpred[[dd]][[m]]~flowdfl[[dd]]$FLOW)
       abline(lmmod, col="red")
       legend("bottomright", horiz=FALSE, inset=c(0.01, 0.01), cex=0.6, c("Y = X line", "regression line"), lty=c(2,1), lwd=c(2,1), col=c("grey80","red"), bg="grey96", xpd=TRUE)
       mtext(paste("Y =", round(lmmod$coefficients[2],3), "X +", round(lmmod$coefficients[1],0)), side=3, line=1, cex=0.8, adj=0.1)
@@ -453,7 +467,7 @@ for(dd in 1:ngates){
 }
 ```
 
-```{r uncertainty1_plots} 
+```{r uncertainty1_plots}
 for(c in 1:length(cvrange)){
   png(paste0('outputs/equation_error/optimization_cloud_', c, ".png"), width=3.25, height=3, units="in", pointsize=8, res=1200)
     par(mar=c(4,4,2,1)+0.1)
@@ -1049,7 +1063,7 @@ for(i in 1:maxlaterals){
   for(j in 1:maxgates){ # this 0.01 value will have to be tweaked after running this a few times. for now just adding the normalized standard deviation to the gate standard deviations. 
     # WARNING!! NOTE!!! multiplied the normalized sd by ...
     network_hsd_gcid_case1[j,i] <- ((0.01*network_numgates_gcid[j,i])^2 + (sd(latlvl[latlvl$LATID=="48-1", "VALUE"])/mean(latlvl[latlvl$LATID=="48-1", "VALUE"])*1)^2)^0.5
-    network_hsd_gcid_case2[j,i] <- ((0.01*network_numgates_gcid[j,i])^2 + (sd(latlvl[latlvl$LATID=="22-1", "VALUE"])/mean(latlvl[latlvl$LATID=="22-1", "VALUE"])*1)^2)^0.5
+    # network_hsd_gcid_case2[j,i] <- ((0.01*network_numgates_gcid[j,i])^2 + (sd(latlvl[latlvl$LATID=="22-1", "VALUE"])/mean(latlvl[latlvl$LATID=="22-1", "VALUE"])*1)^2)^0.5
   }
 }
 
@@ -1061,15 +1075,15 @@ for(l in 1:maxlaterals){
     # CASE I (well-behaved lateral), SCENARIO A (accurate)
     hsdn <- network_hsd_gcid_case1[g, l]
     networkresult_gcid_case1A[[l]][[g]] <- operationalerrorsim(dataindex=dd, coefofvar=0.02, optflowerrorp=0.06, gsd=0.1, hsd=hsdn, tsd=0.25)
-    # CASE II (not well-behaved lateral), SCENARIO A (accurate)
-    hsdn <- network_hsd_gcid_case2[g, l]
-    networkresult_gcid_case2A[[l]][[g]] <- operationalerrorsim(dataindex=dd, coefofvar=0.02, optflowerrorp=0.06, gsd=0.1, hsd=hsdn, tsd=0.25)
-    # CASE I (well-behaved lateral), SCENARIO B (less accurate)
-    hsdn <- network_hsd_gcid_case1[g, l]
-    networkresult_gcid_case1B[[l]][[g]] <- operationalerrorsim(dataindex=dd, coefofvar=0.05, optflowerrorp=0.10, gsd=0.1, hsd=hsdn, tsd=0.25)
-    # CASE II (not well-behaved lateral), SCENARIO B (less accurate)
-    hsdn <- network_hsd_gcid_case2[g, l]
-    networkresult_gcid_case2B[[l]][[g]] <- operationalerrorsim(dataindex=dd, coefofvar=0.05, optflowerrorp=0.10, gsd=0.1, hsd=hsdn, tsd=0.25)
+    # # CASE II (not well-behaved lateral), SCENARIO A (accurate)
+    # hsdn <- network_hsd_gcid_case2[g, l]
+    # networkresult_gcid_case2A[[l]][[g]] <- operationalerrorsim(dataindex=dd, coefofvar=0.02, optflowerrorp=0.06, gsd=0.1, hsd=hsdn, tsd=0.25)
+    # # CASE I (well-behaved lateral), SCENARIO B (less accurate)
+    # hsdn <- network_hsd_gcid_case1[g, l]
+    # networkresult_gcid_case1B[[l]][[g]] <- operationalerrorsim(dataindex=dd, coefofvar=0.05, optflowerrorp=0.10, gsd=0.1, hsd=hsdn, tsd=0.25)
+    # # CASE II (not well-behaved lateral), SCENARIO B (less accurate)
+    # hsdn <- network_hsd_gcid_case2[g, l]
+    # networkresult_gcid_case2B[[l]][[g]] <- operationalerrorsim(dataindex=dd, coefofvar=0.05, optflowerrorp=0.10, gsd=0.1, hsd=hsdn, tsd=0.25)
   }
 }
 ```
@@ -1145,9 +1159,9 @@ network_postprocessing <- function(data, casenum, scenario){
 }
 
 network_postprocessing(networkresult_gcid_case1A, "1", "A")
-network_postprocessing(networkresult_gcid_case2A, "2", "A")
-network_postprocessing(networkresult_gcid_case1B, "1", "B")
-network_postprocessing(networkresult_gcid_case2B, "2", "B")
+# network_postprocessing(networkresult_gcid_case2A, "2", "A")
+# network_postprocessing(networkresult_gcid_case1B, "1", "B")
+# network_postprocessing(networkresult_gcid_case2B, "2", "B")
 ```
 
 # 8.0 Uncertainty at the Lateral Level Disaggregated 
@@ -1177,9 +1191,9 @@ network_disaggregated_flow <- function(data, casenum, scenario){
 }
 
 network_disaggregated_flow_1A <- network_disaggregated_flow(networkresult_gcid_case1A, "1", "A")
-network_disaggregated_flow_2A <- network_disaggregated_flow(networkresult_gcid_case2A, "2", "A")
-network_disaggregated_flow_1B <- network_disaggregated_flow(networkresult_gcid_case1B, "1", "B")
-network_disaggregated_flow_2B <- network_disaggregated_flow(networkresult_gcid_case2B, "2", "B")
+# network_disaggregated_flow_2A <- network_disaggregated_flow(networkresult_gcid_case2A, "2", "A")
+# network_disaggregated_flow_1B <- network_disaggregated_flow(networkresult_gcid_case1B, "1", "B")
+# network_disaggregated_flow_2B <- network_disaggregated_flow(networkresult_gcid_case2B, "2", "B")
 ```
 
 ```{r gate_upstreamlvl_uncertainty_gcid_cases_tbd}
