@@ -11,6 +11,7 @@ editor_options:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, results = "hide", eval=FALSE)
+setwd("/Users/TheVault/Desktop/GateWork/Dissertation/PM_Edits") #set the working drive
 ```
 
 #Introduction.
@@ -50,9 +51,9 @@ The code should, mostly, be running. The programmer I was working with was able 
 
 #There is other data that is brought in later in the model, that data is to show how many lateral canals and gates there are in the system.
 
-flowdf <- read.csv("armco_gate18.csv", header = TRUE, check.names = FALSE, fileEncoding="UTF-8-BOM")
+flowdf <- read.csv("/Users/TheVault/Desktop/GateWork/Dissertation/inputs/armco_gate18.csv", header = TRUE, check.names = FALSE, fileEncoding="UTF-8-BOM") #PM Comment: Reads in data, header checks sets the first row as column names, check.names allows for numeric column names
 
-ngates <- 1 #length(flowdf)
+ngates <- 1 #length(flowdf) #PM Comment: assigns 1 to ngates
 ```
 
 ## 1.2 Data Preprocessing
@@ -67,9 +68,13 @@ flowdfl <- gather(na.omit(flowdf), "G", "flow", 2:ncol(flowdf)) %>%
   #mutate(G = group_indices()) %>% 
   #select(-G_val)
 
+#PM Comment: removes NA cells from flow data frame (na.omit), takes column names and shifts them into rows (gather), changes G to a number instead of a string(mutate)
+
+
 # to take a look do this
 head(flowdfl)
 tail(flowdfl)
+
 ```
 
 # 2 Model Fit
@@ -80,6 +85,16 @@ tail(flowdfl)
 #Later in the model this equation will be expanded to V (Volume) = Q (flow) * t (time)
 
 # vector modelcoef
+a =	0.228970726
+b =	8.332215198
+c =	-1.2246326
+d =	-0.275129331
+e =	-0.03358984
+aa =	-0.019840431
+bb =	-0.49339127
+cc =	0.13387028
+dd =	-0.021659671
+
 modelcoef <- list(a =	0.228970726, 
                   b =	8.332215198,
                   c =	-1.2246326,
@@ -90,10 +105,12 @@ modelcoef <- list(a =	0.228970726,
                   cc =	0.13387028,
                   dd =	-0.021659671)
 
-
 # model formula
 formulastring <- list()
-formulastring[[1]] <- ( a + b * flowdf$G + c * flowdf$G ^ 2 + d * flowdf$G ^ 3 + e * log( flowdf$H ) ) / ( 1 + aa * flowdf$G +  bb * log( flowdf$H ) + cc * ( log( flowdf$H ) ) ^ 2 + dd * ( log( flowdf$H ) ) ^ 3 )
+formulastring[[1]] <- ( a + b * flowdfl$G + c * flowdfl$G ^ 2 + d * flowdfl$G ^ 3 + e * log( flowdfl$H ) ) / ( 1 + aa * flowdfl$G +  bb * log( flowdfl$H ) + cc * ( log( flowdfl$H ) ) ^ 2 + dd * ( log( flowdfl$H ) ) ^ 3 )
+
+#PM Comment:Not sure if you want the above objects to be referenced here or applied with the following formula, as it stands R thinks a, is an independent object, where as it is written it is contained in the list. 
+
 
 ```
 
@@ -103,23 +120,27 @@ formulastring[[1]] <- ( a + b * flowdf$G + c * flowdf$G ^ 2 + d * flowdf$G ^ 3 +
 
 #This section creates plots of observed versus predicted data. This is also where I believe there is an error - we have set ngates = 1 above, because there is only 1 gate equation now. When I was trying to fit the flow equation in R there were multiple formulas, hence the nformulas loop. But now there is only 1 formula, so there should be, I believe, only the outer for loop.
 
-for(di in 1:ngates){
-  for (m in 1:nformulas){
-    png(paste0("outputs/obspreplots/ovp_d", di, "_m", m, ".png"), width=3.25, height=2.85, units="in", pointsize=8, res=1200)
-      plot(flowdfl[[di]]$FLOW, modelpred[[di]][[m]], ylab="Observed Flow", xlab="Predicted Flow", pch=19)
+#for(di in 1:ngates){#As gates are only 1, just 1 is needed for di
+ di<-1 
+ m<-1
+  #for (m in 1:nformulas){ PM Comment: Removing this
+ 
+ #PM Comment: This starts the charting call 
+   png(paste0("outputs/obspreplots/ovp_d", di, "_m", m, ".png"), width=3.25, height=2.85, units="in", pointsize=8, res=1200)
+      plot(flowdfl$flow, formulastring[[1]], ylab="Observed Flow", xlab="Predicted Flow", pch=19)
       
       # adj line for the perfect fit
       abline(0,1, col="grey80", lty=2, lwd=2)
       
       # adj line for linear fit
-      lmmod <- lm(modelpred[[di]][[m]]~flowdfl[[di]]$FLOW)
+      lmmod <- lm(formulastring[[1]]~flowdfl$flow)
       abline(lmmod, col="red")
       legend("bottomright", horiz=FALSE, inset=c(0.01, 0.01), cex=0.6, c("Y = X line", "regression line"), lty=c(2,1), lwd=c(2,1), col=c("grey80","red"), bg="grey96", xpd=TRUE)
-      mtext(paste("Y =", round(lmmod$coefficients[2],3), "X +", round(lmmod$coefficients[1],0)), side=3, line=1, cex=0.8, adj=0.1)
-      mtext(paste("Model bR2:", round(t(modelstats[[di]][[m]])[18],3)), side=3, line=0.3, cex=0.8, adj=0.1)
+      #mtext(paste("Y =", round(lmmod$coefficients[2],3), "X +", round(lmmod$coefficients[1],0)), side=3, line=1, cex=0.8, adj=0.1)
+      #mtext(paste("Model bR2:", round(t(modelstats[[di]][[m]])[18],3)), side=3, line=0.3, cex=0.8, adj=0.1)
     dev.off()
-  }
-}
+#  }
+#}
 ```
 
 # 4 Uncertainty from Flow Table Equation
@@ -369,7 +390,385 @@ dev.off()
 
 ## 5.3 Sensitivity Analysis -- uncertaintiy with varying parameters one at a time
 The goal of the sensitivity analysis is to look at how the variance of the output changes by changing the variance of the inputs. The inputs are being changed one at a time, which is a super simplistic way to do a sensitivity analysis. I am open to suggestion, but also my PI is fine with this method (he's not super knowledgeable about statistics). This is a new portion of the code that was recently added.
+
+
+```{r}
+library(ggplot2)
+SensitivityError_sd <- function(dataindex, coefofvar, optflowerrorp=0.06, gsd, hsd, tsd){
+  
+  # dataindex is probably unnecessary with only one gate
+  di <- dataindex
+  
+  # we can adj the ability to call different functions here, but for now just equation #1
+  #These coefficients were the same as above as far as I can tell, not sure why they were repeated in the code
+  
+  atrue <- modelcoef[[1]] # assume the mean is the true value
+  astdv <- abs(coefofvar*modelcoef[[1]])
+  anorm <- rnorm(nsim, modelcoef[[1]], astdv) # samples around true value, creating error
+  
+  btrue <- modelcoef[[2]]
+  bstdv <- abs(coefofvar*modelcoef[[2]])
+  bnorm <- rnorm(nsim, modelcoef[[2]], bstdv)
+                 
+  ctrue <- modelcoef[[3]]
+  cstdv <- abs(coefofvar*modelcoef[[3]])
+  cnorm <- rnorm(nsim, modelcoef[[3]], cstdv)
+  
+  dtrue <- modelcoef[[4]]
+  dstdv <- abs(coefofvar*modelcoef[[4]])
+  dnorm <- rnorm(nsim, modelcoef[[4]], dstdv)
+  
+  etrue <- modelcoef[[5]]
+  estdv <- abs(coefofvar*modelcoef[[5]])
+  enorm <- rnorm(nsim, modelcoef[[5]], estdv)
+  
+  aatrue <- modelcoef[[6]]
+  aastdv <- abs(coefofvar*modelcoef[[6]])
+  aanorm <- rnorm(nsim, modelcoef[[6]], aastdv)
+  
+  bbtrue <- modelcoef[[7]]
+  bbstdv <- abs(coefofvar*modelcoef[[7]])
+  bbnorm <- rnorm(nsim, modelcoef[[7]], bbstdv)
+  
+  cctrue <- modelcoef[[8]]
+  ccstdv <- abs(coefofvar*modelcoef[[8]])
+  ccnorm <- rnorm(nsim, modelcoef[[8]], ccstdv)
+  
+  ddtrue <- modelcoef[[9]]
+  ddstdv <- abs(coefofvar*modelcoef[[9]])
+  ddnorm <- rnorm(nsim, modelcoef[[9]], ddstdv)
+  
+  # note that G and H are no longer certain here, let's assume a normal distribution of errors
+  # sample a uniform distribution instead of iteratting over all possible values
+  guniform <- runif(nsim, min(flowdfl$G), max(flowdfl$G))
+  huniform <- runif(nsim, min(flowdfl$H), max(flowdfl$H))
+  tuniform <- runif(nsim, 0, 12) # in hours
+  
+  # now assign an error to each sampled G and H, adjed t for volume calcs
+  tnorm <- gnorm <- hnorm <- vector()  
+  for(i in 1:nsim){
+    gnorm[i] <- rnorm(1, guniform[i], gsd)
+    hnorm[i] <- rnorm(1, huniform[i], hsd)
+    tnorm[i] <- rnorm(1, tuniform[i], tsd) 
+  }
+  
+  volsim <- voltruth <-  flowsim <- flowtruth <- vector()
+  
+  for(i in 1:nsim){
+    # we can adj the ability to call different functions here, but for now just equation #1
+    flowsim[i] <- ( anorm[i] + bnorm[i] * gnorm[i] + cnorm[i] * gnorm[i] ^ 2 + dnorm[i] * gnorm[i] ^ 3 + enorm[i] * log( hnorm[i] ) ) / ( 1 + aanorm[i] * gnorm[i] +  bbnorm[i] * log( hnorm[i] ) + ccnorm[i] * ( log( hnorm[i] ) ) ^ 2 + ddnorm[i] * ( log( hnorm[i] ) ) ^ 3 )
+    
+    flowtruth[i] <- ( atrue + btrue * guniform[i] + ctrue * guniform[i] ^ 2 + dtrue * guniform[i] ^ 3 + etrue * log( huniform[i] ) ) / ( 1 + aatrue * gnorm[i] +  bbtrue * log( huniform[i] ) + cctrue * ( log( huniform[i] ) ) ^ 2 + ddtrue * ( log( huniform[i] ) ) ^ 3 )  
+    
+    volsim[i] <- flowsim[i]*tnorm[i]
+    
+    voltruth[i] <- flowtruth[i]*tuniform[i]
+  }
+  
+  flowerror <- flowtruth-flowsim
+  optflowerror <- optflowerrorp*flowtruth
+  errorconditioncol <- ifelse(abs(flowerror)<optflowerror, 1, 0)
+  volerror <- voltruth-volsim
+  optvolerror <- optflowerrorp * voltruth
+  volerrorconditioncol <- ifelse(abs(optvolerror)<optflowerror, 1, 0)
+
+  # conceptual exercise
+  resultsdf <- cbind(FLOWTRUTH=flowtruth, FLOWSIM=flowsim, FLOWERROR=flowerror, OPTFLOW=optflowerror, ERRORCONDITION=errorconditioncol, VOLTRUTH=voltruth, VOLSIM=volsim, VOLERROR=volerror, OPTVOL = optvolerror, VOLERRORCONDITION = volerrorconditioncol)
+  return(resultsdf)
+}
+
+#Plotting
+plotList_Gsd<-list() #initialize list to store the data
+Glist<-seq(0,1,1/30) #set up a sequence of values to loop over
+for(i in 1:length(Glist)){
+  cur_df<- as.data.frame(SensitivityError_sd(gsd=Glist[i],dataindex=di, coefofvar=0.02, optflowerrorp=0.06, hsd=0.1, tsd=0.25)) #create a dataframe of the output of the SA
+  plotList_Gsd[[i]]<-data.frame(VOLERROR=cur_df$VOLERROR,Gsd=Glist[i]) #Save only the volume error 
+print(i)#Counter to see if it runs correctly
+}
+
+G_Plot_Data<-do.call(rbind,plotList_Gsd) #change the list to a dataframe for plotting
+
+g_plot<-ggplot()+geom_point(data=G_Plot_Data,aes(x=Gsd,y=VOLERROR))+ labs(
+              y="Flow Volume Error (AF)",
+              x="Gate Position (G) Standard Deviation (Ft)")+ #create the plot
+              theme_bw() #remove gray background
+
+ggsave(filename ="gPlot.png", #Save the file with the some options
+       plot=g_plot, #R object to be saved
+       path="/Users/TheVault/Desktop/GateWork/Dissertation/PM_Edits/outputs/sensitivity_analysis_pm/", #Path to directory where it should be saved
+      device="png", #type of saved file
+      width=6.5, 
+      height=5, 
+      units="in") #units in inches
+
+#H Sd
+plotList_Hsd<-list() #Repeat aboue code, but with different variables
+Hlist<-seq(0,1,1/30)
+for(i in 1:length(Hlist)){
+  cur_df<- as.data.frame(SensitivityError_sd(hsd=Hlist[i],dataindex=di, coefofvar=0.02, optflowerrorp=0.06, gsd=0.1, tsd=0.25))
+  plotList_Hsd[[i]]<-data.frame(VOLERROR=cur_df$VOLERROR,Hsd=Hlist[i])
+print(i)
+}
+
+H_Plot_Data<-do.call(rbind,plotList_Hsd)
+
+H_plot<-ggplot()+geom_point(data=H_Plot_Data,aes(x=Hsd,y=VOLERROR))+ labs(
+              y="Flow Volume Error (AF)",
+              x="Upstream Level (H) Standard Deviation (Ft)")+
+              theme_bw() 
+
+ggsave(filename ="hPlot.png",
+       plot=H_plot,
+       path="/Users/TheVault/Desktop/GateWork/Dissertation/PM_Edits/outputs/sensitivity_analysis_pm/",
+      device="png",
+      width=6.5,
+      height=5, 
+      units="in")
+
+#T Sd
+plotList_Tsd<-list()
+Tlist<-seq(0,1,1/30)
+for(i in 1:length(Tlist)){
+  cur_df<- as.data.frame(SensitivityError_sd(tsd=Tlist[i],dataindex=di, coefofvar=0.02, optflowerrorp=0.06, gsd=0.1, hsd=0.1))
+  plotList_Tsd[[i]]<-data.frame(VOLERROR=cur_df$VOLERROR,Tsd=Tlist[i])
+print(i)
+}
+
+T_Plot_Data<-do.call(rbind,plotList_Tsd)
+
+T_plot<-ggplot()+geom_point(data=T_Plot_Data,aes(x=Tsd,y=VOLERROR))+ labs(
+              y="Flow Volume Error (AF)",
+              x="Time (T) Standard Deviation (Hour)")+
+              theme_bw() 
+
+ggsave(filename ="tPlot.png",
+       plot=T_plot,
+       path="/Users/TheVault/Desktop/GateWork/Dissertation/PM_Edits/outputs/sensitivity_analysis_pm/",
+      device="png",
+      width=6.5,
+      height=5, 
+      units="in")
+
+#CV
+plotList_cv<-list()
+cvlist<-seq(0,1,1/30)
+for(i in 1:length(cvlist)){
+  cur_df<- as.data.frame(SensitivityError_sd(tsd=0.1,dataindex=di, coefofvar=cvlist[i], optflowerrorp=0.06, gsd=0.1, hsd=0.1))
+  plotList_cv[[i]]<-data.frame(VOLERROR=cur_df$VOLERROR,cv=cvlist[i])
+print(i)
+}
+
+cv_Plot_Data<-do.call(rbind,plotList_cv)
+
+cv_plot<-ggplot()+geom_point(data=cv_Plot_Data,aes(x=cv,y=VOLERROR))+ labs(
+              y="Flow Volume Error (AF)",
+              x="Equation Coefficient Coefficient of Variation")+
+              theme_bw()
+
+print(cv_plot)
+ggsave(filename ="cvPlot.png",
+       plot=cv_plot,
+       path="/Users/TheVault/Desktop/GateWork/Dissertation/PM_Edits/outputs/sensitivity_analysis_pm/",
+      device="png",
+      width=6.5,
+      height=5, 
+      units="in")
+
+
+#Line Plots
+#GSD Line Plot
+G_Plot_DataAbs<-do.call(rbind,plotList_Gsd)
+G_Plot_DataAbs$VOLERROR<-abs(G_Plot_DataAbs$VOLERROR)
+GplotData_line<-G_Plot_DataAbs%>%group_by(Gsd)%>%summarise(meanErr=mean(VOLERROR, na.rm=T))
+
+g_plot_line<-ggplot()+geom_line(data=GplotData_line,aes(x=Gsd,y=meanErr))+ labs(
+              y="Flow Volume Error (AF)",
+              x="Gate Position (G) Standard Deviation (Ft)")+
+              theme_bw()
+
+ggsave(filename ="gPlot_line",
+       plot=g_plot_line,
+       path="/Users/TheVault/Desktop/GateWork/Dissertation/PM_Edits/outputs/sensitivity_analysis_pm/",
+      device="png",
+      width=6.5,
+      height=5, 
+      units="in")
+
+#HSD Line Plot
+H_Plot_DataAbs<-do.call(rbind,plotList_Hsd)
+H_Plot_DataAbs$VOLERROR<-abs(H_Plot_DataAbs$VOLERROR)
+HplotData_line<-H_Plot_DataAbs%>%group_by(Hsd)%>%summarise(meanErr=mean(VOLERROR, na.rm=T))
+H_plot_line<-ggplot()+geom_line(data=HplotData_line,aes(x=Hsd,y=meanErr),alpha=.5)+ labs(
+              y="Flow Volume Error (AF)",
+              x="Upstream Level (H) Standard Deviation (Ft)")+
+              theme_bw()
+
+ggsave(filename ="hPlot_line",
+       plot=H_plot_line,
+       path="/Users/TheVault/Desktop/GateWork/Dissertation/PM_Edits/outputs/sensitivity_analysis_pm/",
+      device="png",
+      width=6.5,
+      height=5, 
+      units="in")
+
+#TSd line plot
+T_Plot_DataAbs<-do.call(rbind,plotList_Tsd)
+T_Plot_DataAbs$VOLERROR<-abs(T_Plot_DataAbs$VOLERROR)
+TplotData_line<-T_Plot_DataAbs%>%group_by(Tsd)%>%summarise(meanErr=mean(VOLERROR, na.rm=T))
+T_plot_line<-ggplot()+geom_line(data=TplotData_line,aes(x=Tsd,y=meanErr))+ labs(
+              y="Flow Volume Error (AF)",
+              x="Time (T) Standard Deviation (Hour)")+
+              theme_bw()
+
+ggsave(filename ="tPlot_line",
+       plot=T_plot_line,
+       path="/Users/TheVault/Desktop/GateWork/Dissertation/PM_Edits/outputs/sensitivity_analysis_pm/",
+      device="png",
+      width=6.5,
+      height=5, 
+      units="in")
+
+#CV
+cv_Plot_DataAbs<-do.call(rbind,plotList_cv)
+cv_Plot_DataAbs$VOLERROR<-abs(cv_Plot_DataAbs$VOLERROR)
+CVplotData_line<-cv_Plot_DataAbs%>%group_by(cv)%>%summarise(meanErr=mean(VOLERROR, na.rm=T),
+                                                            Max=(meanErr+sd(VOLERROR,na.rm=T)),
+                                                            Min=(meanErr-sd(VOLERROR,na.rm=T)))
+
+cv_plot_line<-ggplot()+geom_line(data=CVplotData_line,aes(x=cv,y=meanErr))+
+               geom_ribbon(data=CVplotData_line,aes(x=cv,ymax=Max,ymin=Min),alpha=.5)+
+              labs(
+              y="Flow Volume Error (AF)",
+              x="Equation Coefficient Coefficient of Variation")+
+              theme_bw()
+
+ggsave(filename ="cvPlot_line",
+       plot=cv_plot_line,
+       path="/Users/TheVault/Desktop/GateWork/Dissertation/PM_Edits/outputs/sensitivity_analysis_pm/",
+      device="png",
+      width=6.5,
+      height=5, 
+      units="in")
+
+```
+
+
 ```{r uncertainty3}
+nsim<-1000
+
+
+#Draws
+guniform <- runif(nsim, min(flowdfl$G), max(flowdfl$G))
+huniform <- runif(nsim, min(flowdfl$H), max(flowdfl$H))
+tuniform <- runif(nsim, 0, 12)
+
+# now assign an error to each sampled G and H, adjed t for volume calcs
+tnorm <- gnorm <- hnorm <- vector()  
+for(i in 1:nsim){
+    gnorm[i] <- rnorm(1, guniform[i], gsd)
+    hnorm[i] <- rnorm(1, huniform[i], hsd)
+    tnorm[i] <- rnorm(1, tuniform[i], tsd) 
+  }
+  
+pars <- list(a =	0.228970726, 
+                  b =	8.332215198,
+                  c =	-1.2246326,
+                  d =	-0.275129331,
+                  e =	-0.03358984,
+                  aa =	-0.019840431,
+                  bb =	-0.49339127,
+                  cc =	0.13387028,
+                  dd =	-0.021659671)
+
+# the number of Monte-Carlo loops
+nsim <- 1000
+set.seed(19320928)
+
+# optflowerrorp is the percent of error allowed, like 6%, 12%
+G_SensitivitySim <- function(dataindex, coefofvar, optflowerrorp,G){
+  # dataindex is probably unnecessary with only one gate
+  di <- dataindex
+  
+  # we can add the ability to call different functions here, but for now just equation #1
+  atrue <- modelcoef[[1]] # assume the mean is the true value
+  btrue <- modelcoef[[2]]
+  ctrue <- modelcoef[[3]]
+  dtrue <- modelcoef[[4]]
+  etrue <- modelcoef[[5]]
+  aatrue <- modelcoef[[6]]
+  bbtrue <- modelcoef[[7]]
+  cctrue <- modelcoef[[8]]
+  ddtrue <- modelcoef[[9]]
+  
+  flowtruth[i] <- ( atrue + btrue * guniform[i] + ctrue * guniform[i] ^ 2 + dtrue * guniform[i] ^ 3 + etrue * log( huniform[i] ) ) / ( 1 + aatrue * guniform[i] +  bbtrue * log( huniform[i] ) + cctrue * ( log( huniform[i] ) ) ^ 2 + ddtrue * ( log( huniform[i] ) ) ^ 3 )
+  
+  # note that G and H are certain here, the only source of uncertainty is in the model parameters! We are sampling it from a uniform distribution, rather than looping over all possible values, with a high enough nsim, this shouldn't be an issue.
+  guniform <- rep(G,nsim)
+  huniform <- runif(nsim, min(flowdfl$H), max(flowdfl$H))
+  
+  flowsim <- flowtruth <- vector()
+  for(i in 1:nsim){
+    
+    # we can adjust the ability to call different functions here, but for now just equation #1
+    flowsim[i] <- ( anorm[i] + bnorm[i] * guniform[i] + cnorm[i] * guniform[i] ^ 2 + dnorm[i] * guniform[i] ^ 3 + enorm[i] * log( huniform[i] ) ) / ( 1 + aanorm[i] * guniform[i] +  bbnorm[i] * log( huniform[i] ) + ccnorm[i] * ( log( huniform[i] ) ) ^ 2 + ddnorm[i] * ( log( huniform[i] ) ) ^ 3 ) 
+    
+    flowtruth[i] <- ( atrue + btrue * guniform[i] + ctrue * guniform[i] ^ 2 + dtrue * guniform[i] ^ 3 + etrue * log( huniform[i] ) ) / ( 1 + aatrue * guniform[i] +  bbtrue * log( huniform[i] ) + cctrue * ( log( huniform[i] ) ) ^ 2 + ddtrue * ( log( huniform[i] ) ) ^ 3 ) 
+  }
+
+  flowerror <- flowtruth-flowsim
+  
+  # This code checks if all errors in flow are less than the maximum error allowed (e.g., 6% of flow). This is plotted with colors to show points in and out of bounds. I then choose the cv that corresponds to the results being within 6% or 12% of the "truth". I might try to run the model with a couple different cv values - one with all points in bounds, one with 98% of points in bounds, one with 95% of points in bounds, etc.
+  
+  optflowerror <- optflowerrorp*flowtruth
+  errorconditioncol <- ifelse(abs(flowerror)<optflowerror, 1, 0)
+  # resultstomin <- nsim-sum(errorconditioncol)
+  resultsdf <- cbind(FLOWTRUTH=flowtruth, FLOWSIM=flowsim, FLOWERROR=flowerror, OPTFLOW=optflowerror, ERRORCONDITION=errorconditioncol)
+  return(resultsdf)
+}
+
+cvrange <- seq(0.01, 0.5, 0.01)
+optresult <-list()
+for(i in 1:length(cvrange)){
+    cv <- cvrange[i]
+    optresult[[i]] <- equationerrorsim(dataindex=di, coefofvar=cv, optflowerrorp=0.06)
+  }
+
+optresult_check <- optresult[[2]]
+
+
+#Test
+G<-min(flowdfl$H)
+
+#Assuming the following
+#G, H, and T are drawn from a uniform distribution
+factors <- c("G", "G", "T") #Define the varibales we want to draw 
+q <- c("qunif", "qunif", "qunif") #definte all three variables as uniform distribution
+q.arg <- list( list(min=1, max=50), list(min=1, max=50),list(min=1, max=50) )#set up the uDist
+
+
+
+
+#X y plot, 100 monte carlo runs, plot of increasing the CV and increasing SD
+g_sensitivity_df <- data.frame() #initializes the data frame
+for (cv_cur in seq(0.01, 0.41, 0.05)){
+  for(sd in seq(0.01, 0.41, 0.05)){  
+      cur_df <- as.data.frame(operationalerrorsim(dataindex=di, coefofvar=cv_cur, optflowerrorp=0.06, gsd = sd))
+#png(paste0('outputs/sensitivity_analysis/G/G_optimization_cloud_', cv_cur, '.png'), width=4.5, height=4, units="in", pointsize=8, res=600)
+  #par(mar=c(4,4,2,1)+0.1)
+plot(cur_df[, "FLOWERROR"], cur_df[, "FLOWTRUTH"], col=c("red", "steelblue1")[cur_df[, "ERRORCONDITION"]+1], pch=19, xlab="Error in Flow (cfs)", ylab="True Flow(cfs)")
+  mtext(paste0("Coefficient of Variation of Equation Parameters = ", cv_cur, "\nfor Standard Deviation of G = ", sd), side=3, line=0)
+  legend("topleft", c("Optimal", "Error"), pch=c(19,19), col=c("steelblue1", "red"), inset=c(0.02,0.02), cex=0.8, bg="grey96")
+  
+  # Add columns to note coefficient of variation and standard deviatation of the variable, then add to larger data frame
+  cur_df <- mutate(cur_df, COEFOFVAR = cv_cur, GSD = sd)
+  g_sensitivity_df <- rbind(g_sensitivity_df, cur_df)
+  print(sd)
+  print(cv_cur)
+  }}
+
+
+  #sets up cv_cur from .01 to .41 by increments of 0.05
+  cur_df <- as.data.frame(operationalerrorsim(dataindex=di, coefofvar=cv_cur, optflowerrorp=0.06, gsd = cv_cur*0.5))
 
 # The outputs of this section are scatterplots of the flow and printing a table for use as csv for mean and sd for results. The sensitivity analysis changes both the parameter uncertainty (cv) and the variables uncertainties (gsd, hsd, tsd). The model steps through a loop for a range of these values.
 
@@ -379,24 +778,23 @@ The goal of the sensitivity analysis is to look at how the variance of the outpu
 # 0.01 to 0.41 in steps of 0.05 for the cv
 
 # call operationalerrorsim(cv = (0.01 - 0.41), gsd = , hsd = , tsd = )
-
 # calculate sd based on means of g = .5, h = 1.25, t = 6 and the changing cv
+
 
 
 # Initialize data frame to gather sensitivity data, then loop through sensitivity sequence
 g_sensitivity_df <- data.frame()
 for (cv_cur in seq(0.01, 0.41, 0.05)) {
-  cur_df <- as.data.frame(operationalerrorsim(dataindex=di, coefofvar=cv_cur, optflowerrorp=0.06, gsd = cv_cur*0.5))
-  
-  png(paste0('outputs/sensitivity_analysis/G/G_optimization_cloud_', cv_cur, '.png'), width=4.5, height=4, units="in", pointsize=8, res=600)
-  par(mar=c(4,4,2,1)+0.1)
-  plot(cur_df[, "FLOWERROR"], cur_df[, "FLOWTRUTH"], col=c("red", "steelblue1")[cur_df[, "ERRORCONDITION"]+1], pch=19, xlab="Error in Flow (cfs)", ylab="True Flow(cfs)")
-  mtext(paste0("Coefficient of Variation of Equation Parameters = ", cv_cur, "\nfor Standard Deviation of G = ", cv_cur*0.5), side=3, line=0)
+  cur_df <- as.data.frame(operationalerrorsim(dataindex=di, coefofvar=cv_cur, optflowerrorp=0.06, gsd = sd))
+#png(paste0('outputs/sensitivity_analysis/G/G_optimization_cloud_', cv_cur, '.png'), width=4.5, height=4, units="in", pointsize=8, res=600)
+  #par(mar=c(4,4,2,1)+0.1)
+plot(cur_df[, "FLOWERROR"], cur_df[, "FLOWTRUTH"], col=c("red", "steelblue1")[cur_df[, "ERRORCONDITION"]+1], pch=19, xlab="Error in Flow (cfs)", ylab="True Flow(cfs)")
+  mtext(paste0("Coefficient of Variation of Equation Parameters = ", cv_cur, "\nfor Standard Deviation of G = ", sd), side=3, line=0)
   legend("topleft", c("Optimal", "Error"), pch=c(19,19), col=c("steelblue1", "red"), inset=c(0.02,0.02), cex=0.8, bg="grey96")
   dev.off()
   
   # Add columns to note coefficient of variation and standard deviatation of the variable, then add to larger data frame
-  cur_df <- mutate(cur_df, COEFOFVAR = cv_cur, GSD = cv_cur*0.5)
+  cur_df <- mutate(cur_df, COEFOFVAR = cv_cur, GSD = sd)
   g_sensitivity_df <- rbind(g_sensitivity_df, cur_df)
 }
 
@@ -440,6 +838,7 @@ for (cv_cur in seq(0.01, 0.41, 0.05)) {
 }
 write.csv(t_sensitivity_df, "outputs/sensitivity_analysis/T/T_sensitivity.csv")
 
+ 
 ```
 
 # 6 Uncertainty at the Gate Level - Gates in Series
