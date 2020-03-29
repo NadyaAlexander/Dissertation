@@ -579,14 +579,18 @@ ggsave(filename ="cvPlot.png",
 #GSD Line Plot
 G_Plot_DataAbs<-do.call(rbind,plotList_Gsd)
 G_Plot_DataAbs$VOLERROR<-abs(G_Plot_DataAbs$VOLERROR)
-GplotData_line<-G_Plot_DataAbs%>%group_by(Gsd)%>%summarise(meanErr=mean(VOLERROR, na.rm=T))
+GplotData_line<-G_Plot_DataAbs%>%group_by(Gsd)%>%summarise(meanErr=mean(VOLERROR, na.rm=T),
+                                                            Max=(meanErr+sd(VOLERROR,na.rm=T)),
+                                                            Min=(meanErr-sd(VOLERROR,na.rm=T)))
 
-g_plot_line<-ggplot()+geom_line(data=GplotData_line,aes(x=Gsd,y=meanErr))+ labs(
+g_plot_line<-ggplot()+geom_line(data=GplotData_line,aes(x=Gsd,y=meanErr))+
+              geom_ribbon(data=GplotData_line,aes(x=Gsd,ymax=Max,ymin=Min),alpha=.5)+ 
+              labs(
               y="Flow Volume Error (AF)",
               x="Gate Position (G) Standard Deviation (Ft)")+
               theme_bw()
 
-ggsave(filename ="gPlot_line",
+ggsave(filename ="gPlot_line.png",
        plot=g_plot_line,
        path="/Users/TheVault/Desktop/GateWork/Dissertation/PM_Edits/outputs/sensitivity_analysis_pm/",
       device="png",
@@ -597,13 +601,18 @@ ggsave(filename ="gPlot_line",
 #HSD Line Plot
 H_Plot_DataAbs<-do.call(rbind,plotList_Hsd)
 H_Plot_DataAbs$VOLERROR<-abs(H_Plot_DataAbs$VOLERROR)
-HplotData_line<-H_Plot_DataAbs%>%group_by(Hsd)%>%summarise(meanErr=mean(VOLERROR, na.rm=T))
-H_plot_line<-ggplot()+geom_line(data=HplotData_line,aes(x=Hsd,y=meanErr),alpha=.5)+ labs(
+HplotData_line<-H_Plot_DataAbs%>%group_by(Hsd)%>%summarise(meanErr=mean(VOLERROR, na.rm=T),
+                                                            Max=(meanErr+sd(VOLERROR,na.rm=T)),
+                                                            Min=(meanErr-sd(VOLERROR,na.rm=T)))
+                                                           
+H_plot_line<-ggplot()+geom_line(data=HplotData_line,aes(x=Hsd,y=meanErr),alpha=.5)+ 
+              geom_ribbon(data=HplotData_line,aes(x=Hsd,ymax=Max,ymin=Min),alpha=.5)+  
+              labs(
               y="Flow Volume Error (AF)",
               x="Upstream Level (H) Standard Deviation (Ft)")+
               theme_bw()
 
-ggsave(filename ="hPlot_line",
+ggsave(filename ="hPlot_line.png",
        plot=H_plot_line,
        path="/Users/TheVault/Desktop/GateWork/Dissertation/PM_Edits/outputs/sensitivity_analysis_pm/",
       device="png",
@@ -614,13 +623,19 @@ ggsave(filename ="hPlot_line",
 #TSd line plot
 T_Plot_DataAbs<-do.call(rbind,plotList_Tsd)
 T_Plot_DataAbs$VOLERROR<-abs(T_Plot_DataAbs$VOLERROR)
-TplotData_line<-T_Plot_DataAbs%>%group_by(Tsd)%>%summarise(meanErr=mean(VOLERROR, na.rm=T))
-T_plot_line<-ggplot()+geom_line(data=TplotData_line,aes(x=Tsd,y=meanErr))+ labs(
+TplotData_line<-T_Plot_DataAbs%>%group_by(Tsd)%>%summarise(meanErr=mean(VOLERROR, na.rm=T),
+                                                            Max=(meanErr+sd(VOLERROR,na.rm=T)),
+                                                            Min=(meanErr-sd(VOLERROR,na.rm=T)))
+
+
+T_plot_line<-ggplot()+geom_line(data=TplotData_line,aes(x=Tsd,y=meanErr))+
+              geom_ribbon(data=TplotData_line,aes(x=Tsd,ymax=Max,ymin=Min),alpha=.5)+  
+              labs(
               y="Flow Volume Error (AF)",
               x="Time (T) Standard Deviation (Hour)")+
               theme_bw()
 
-ggsave(filename ="tPlot_line",
+ggsave(filename ="tPlot_line.png",
        plot=T_plot_line,
        path="/Users/TheVault/Desktop/GateWork/Dissertation/PM_Edits/outputs/sensitivity_analysis_pm/",
       device="png",
@@ -628,7 +643,7 @@ ggsave(filename ="tPlot_line",
       height=5, 
       units="in")
 
-#CV
+#CV Plot
 cv_Plot_DataAbs<-do.call(rbind,plotList_cv)
 cv_Plot_DataAbs$VOLERROR<-abs(cv_Plot_DataAbs$VOLERROR)
 CVplotData_line<-cv_Plot_DataAbs%>%group_by(cv)%>%summarise(meanErr=mean(VOLERROR, na.rm=T),
@@ -642,7 +657,7 @@ cv_plot_line<-ggplot()+geom_line(data=CVplotData_line,aes(x=cv,y=meanErr))+
               x="Equation Coefficient Coefficient of Variation")+
               theme_bw()
 
-ggsave(filename ="cvPlot_line",
+ggsave(filename ="cvPlot_line.png",
        plot=cv_plot_line,
        path="/Users/TheVault/Desktop/GateWork/Dissertation/PM_Edits/outputs/sensitivity_analysis_pm/",
       device="png",
@@ -904,6 +919,9 @@ toymod_abs_mean_errorcondition <- aggregate(ERRORCONDITION~LATNUM+LATID+GATENUM+
 toymod_abs_mean_errorcondition$ERRORCONDITIONNOTMET <- 1-toymod_abs_mean_errorcondition$ERRORCONDITION
 
 # plot min, max, mean
+#Reverse the order for plotting
+toymod_abs_mean_flowerror$GATENUM <- factor(toymod_abs_mean_flowerror$GATENUM, levels =c("5","4","3","2","1"), ordered = TRUE )
+
 library(ggplot2)
 png('outputs/toymodel_mean_flowerror.png', width=6.5, height=4, units="in", pointsize=8, res=300)
   ggplot(toymod_abs_mean_flowerror, aes(x=LATNUM, y=GATENUM, size=MEANABSFLOWERROR, fill=MEANABSFLOWERROR)) +
@@ -914,7 +932,11 @@ png('outputs/toymodel_mean_flowerror.png', width=6.5, height=4, units="in", poin
     ylab("Gate No.")
 dev.off()
 
+
 png('outputs/toymodel_min_flowerror.png', width=6.5, height=4, units="in", pointsize=8, res=300) 
+#Reverse the order for plotting
+toymod_min_flowerror$GATENUM <- factor(toymod_min_flowerror$GATENUM, levels =c("5","4","3","2","1"), ordered = TRUE )
+#Plot
   ggplot(toymod_min_flowerror, aes(x=LATNUM, y=GATENUM, size=MINABSFLOWERROR, fill=MINABSFLOWERROR)) +
     geom_point(shape = 21)+
     scale_fill_distiller(palette = "Spectral")+
@@ -924,7 +946,10 @@ png('outputs/toymodel_min_flowerror.png', width=6.5, height=4, units="in", point
 dev.off()
 
 png('outputs/toymodel_max_flowerror.png', width=6.5, height=4, units="in", pointsize=8, res=300)
-  ggplot(toymod_max_flowerror, aes(x=LATNUM, y=GATENUM, size=MAXABSFLOWERROR, fill=MAXABSFLOWERROR)) +
+#Reverse the order for plotting
+toymod_max_flowerror$GATENUM <- factor(toymod_max_flowerror$GATENUM, levels =c("5","4","3","2","1"), ordered = TRUE )
+#Plot
+ ggplot(toymod_max_flowerror, aes(x=LATNUM, y=GATENUM, size=MAXABSFLOWERROR, fill=MAXABSFLOWERROR)) +
     geom_point(shape = 21)+
     scale_fill_distiller(palette = "Spectral")+
     labs(fill = "Maximum \nAbsolute \nFlow Error \n(cfs)", size="Maximum \nAbsolute \nFlow Error \n(cfs)")+
@@ -933,6 +958,9 @@ png('outputs/toymodel_max_flowerror.png', width=6.5, height=4, units="in", point
 dev.off()
 
 png('outputs/toymodel_mean_noncompliancepercentage_flowerror.png', width=6.5, height=4, units="in", pointsize=8, res=300)
+#Reverse the order for plotting
+toymod_abs_mean_errorcondition$GATENUM <- factor(toymod_abs_mean_errorcondition$GATENUM, levels =c("5","4","3","2","1"), ordered = TRUE )
+#Plot
   ggplot(toymod_abs_mean_errorcondition, aes(x=LATNUM, y=GATENUM, size=ERRORCONDITIONNOTMET, fill=ERRORCONDITIONNOTMET)) +
     geom_point(shape = 21)+
     scale_fill_distiller(palette = "Spectral")+
