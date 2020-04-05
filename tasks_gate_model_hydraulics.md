@@ -4,11 +4,13 @@ The code up to the this point treats all the gates as if they are the same. In t
 
 I have included a spreadsheet with a rough cut of the different flows through different laterals. For now, all the gates are being treated the same, although ideally that would change if I get some data to show the differences there. 
 
+One thing I forgot to mention earlier - this may be expanded in the future, to include a more accurate picture of "real time" operations, but for now, I am just using the total seasonal flow.
+
 Ouputs:<br />
   1.1. a csv that shows the mean and standard deviation / error for the flow through each lateral. <br />
   1.2 graph like "gcid_mean_flowerror_C1SA".<br />
 
-### 2. Section 8 Unsteady flow propegation
+### 2. Section 8: Unsteady flow propegation
 
 I am working on in an outside program. My advisor has asked that I model the flow using the 1/2/3- D unsteady flow modeling software HEC-RAS. I haven't used that before, so I'm learning it right now. Because of this, we probably won't finish this section right now. But I do want to work on it just for the sake of getting a chapter submitted while I learn HEC-RAS.
 
@@ -30,3 +32,29 @@ The goal of this model is to run the model as it exists with two changes.
 Outputs: <br />
   2.3. A graph like "gcid_mean_flowerror_C1SA"<br />
   2.4.  A csv that shows the mean flow and standard deviation for the flow for each lateral.<br />
+    
+### Next Steps.
+I wanted to start to write out what the remaining steps of the model are, although without final details (file names, etc.)
+
+### 3. Section 9: Compare the Gate Accuracy to the Lateral Heading Accuracy
+
+The idea here is to examine what is the cost-benefit of improving accuracy at the farmgate level instead of the lateral heading level. There are a variety of lateral heading measurement devices. Some of them have published accuracies (flow meter), and some do not (operator puts a stick on top of the weir and records the result).
+
+I would like to do the following steps:
+
+3.1 Create an adjustable proportion between chaotic and stable laterals. This would be assigned on a *parent* lateral level, we couldn't have a chaotic lateral that then had a stable lateral branch off of it. Ideally the proportion would be randomly assigned across the laterals (i.e., if we choose 50/50, the program will make 50% of the laterals chaotic and 50% stable).
+
+3.2. Create an adjustable assignment for lateral heading measurement. I will choose 4-ish devices (they have more than this, but some are being pulled out and replaced, so I want to ignore those). Each device will have a designated variance. I will choose a couple different scenarios for how the devices are assigned to the headings.
+
+3.3. Run scenarios in 3.1 and 3.2 to see what the total standard deviation for the system is as well as the expected total flow error in volume (acre-feet).
+
+### 4. Add in Costs
+
+4.1. Add in costs. Include three scenarios: the cost of upgrading the gates in 3.1 the gates in 3.1 and the lateral headings in 3.2, or upgrading the lateral headings only in 3.2. 
+
+4.2. Calculate the cost-benefit, the decrease in total volume flow error per dollar. I expect that this will heavily favor not upgrading the gates, because there is no mathematical reason to favor a bunch of small measurement points instead of one big one.
+
+4.3. Create what I am calling a "granularity factor". I haven't totally worked this out in my head yet, but the basic idea is - how do I use a multiplier to weight the results so that upgrading all the gates is "preferred" in the cost-benefit over upgrading the lateral headings? Granularity refers to the fact that the lateral heading measurement is for a large area - say 1,000 acres, while each gate is for a small area - 50 acres. I want to represent the ratio of that area difference and show how much money is being spent to get the more granular measurement.
+
+And that's it! 
+Once it's running I will probably want to loop back around and make changes to some pieces, especially if we get more data, but that's the general conclusions I'm going after.
