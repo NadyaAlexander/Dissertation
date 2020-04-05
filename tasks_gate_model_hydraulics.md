@@ -50,7 +50,10 @@ I would like to do the following steps:
 
 ### 4. Add in Costs
 
-4.1. Add in costs. Include three scenarios: the cost of upgrading the gates in 3.1 the gates in 3.1 and the lateral headings in 3.2, or upgrading the lateral headings only in 3.2. 
+4.1. Add in costs. Include three scenarios: <br />
+4.1.1 The cost of upgrading the gates in 3.1 only <br />
+4.1.2. The cost of upgrading gates in 3.1 and the lateral headings in 3.2 <br />
+4.1.3. The cost of upgrading the lateral headings in 3.2 only. 
 
 4.2. Calculate the cost-benefit, the decrease in total volume flow error per dollar. I expect that this will heavily favor not upgrading the gates, because there is no mathematical reason to favor a bunch of small measurement points instead of one big one.
 
