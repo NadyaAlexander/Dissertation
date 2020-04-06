@@ -252,13 +252,13 @@ optresult_check <- optresult[[2]]
 ##4.2 Monte Carlo Plots. 
 These plots show the results from the above section, with red dots for points that exceed the threshold and blue dots for points that do not exceed the threshold.
 ```{r uncertainty1_plots}
-
+i<-1
 for(i in 1:length(cvrange)){
   png(paste0('outputs/equation_error/optimization_cloud_', i, ".png"), width=3.25, height=3, units="in", pointsize=8, res=1200)
     par(mar=c(4,4,2,1)+0.1)
     plot(optresult[[i]][, "FLOWERROR"], optresult[[i]][, "FLOWTRUTH"], col=c("red", "steelblue1")[optresult[[i]][, "ERRORCONDITION"]+1], pch=19, xlab="Error in Flow (cfs)", ylab="True Flow(cfs)")
     mtext(paste0("Coefficient of Variation: ", cvrange[i]), side=3, line=0)
-    legend("bottomleft", c("Optimal", "Error"), pch=c(19,19), col=c("steelblue1", "red"), inset=c(0.02,0.02), cex=0.8, bg="grey96")
+    #legend("bottomleft", c("Optimal", "Error"), pch=c(19,19), col=c("steelblue1", "red"), inset=c(0.02,0.02), cex=0.8, bg="grey96")
   dev.off()
 }
 
