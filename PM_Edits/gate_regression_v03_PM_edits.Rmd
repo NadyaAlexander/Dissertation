@@ -110,8 +110,6 @@ formulastring <- list()
 formulastring[[1]] <- ( a + b * flowdfl$G + c * flowdfl$G ^ 2 + d * flowdfl$G ^ 3 + e * log( flowdfl$H ) ) / ( 1 + aa * flowdfl$G +  bb * log( flowdfl$H ) + cc * ( log( flowdfl$H ) ) ^ 2 + dd * ( log( flowdfl$H ) ) ^ 3 )
 
 #PM Comment:Not sure if you want the above objects to be referenced here or applied with the following formula, as it stands R thinks a, is an independent object, where as it is written it is contained in the list. 
-
-
 ```
 
 
@@ -667,7 +665,7 @@ ggsave(filename ="cvPlot_line.png",
 
 ```
 
-
+#Old Code
 ```{r uncertainty3}
 nsim<-1000
 
@@ -750,19 +748,6 @@ for(i in 1:length(cvrange)){
 
 optresult_check <- optresult[[2]]
 
-
-#Test
-G<-min(flowdfl$H)
-
-#Assuming the following
-#G, H, and T are drawn from a uniform distribution
-factors <- c("G", "G", "T") #Define the varibales we want to draw 
-q <- c("qunif", "qunif", "qunif") #definte all three variables as uniform distribution
-q.arg <- list( list(min=1, max=50), list(min=1, max=50),list(min=1, max=50) )#set up the uDist
-
-
-
-
 #X y plot, 100 monte carlo runs, plot of increasing the CV and increasing SD
 g_sensitivity_df <- data.frame() #initializes the data frame
 for (cv_cur in seq(0.01, 0.41, 0.05)){
@@ -795,8 +780,6 @@ plot(cur_df[, "FLOWERROR"], cur_df[, "FLOWTRUTH"], col=c("red", "steelblue1")[cu
 # call operationalerrorsim(cv = (0.01 - 0.41), gsd = , hsd = , tsd = )
 # calculate sd based on means of g = .5, h = 1.25, t = 6 and the changing cv
 
-
-
 # Initialize data frame to gather sensitivity data, then loop through sensitivity sequence
 g_sensitivity_df <- data.frame()
 for (cv_cur in seq(0.01, 0.41, 0.05)) {
@@ -814,7 +797,6 @@ plot(cur_df[, "FLOWERROR"], cur_df[, "FLOWTRUTH"], col=c("red", "steelblue1")[cu
 }
 
 write.csv(g_sensitivity_df, "outputs/sensitivity_analysis/G/G_sensitivity.csv")
-
 
 # Initialize data frame to gather sensitivity data, then loop through sensitivity sequence
 h_sensitivity_df <- data.frame()
@@ -1173,11 +1155,181 @@ There are two remaining chunks of code, this one and the one following. These we
 
 This section of the code reads in the amount of flow that passes through each gate, from field data, and disaggregates the results so that laterals that have more flow are assigned more error, i.e., the final plots of network look more realistic.
 ## 7.1 Disaggregateing the results and calculating statistics.
-```{r lateral_uncertainty_disaggregated}
+```{r}
+#IS THe BASE DATA COMING FROM FLOWdfl not LATLVL 
+#WHERE TO GET THE SD 
+#THE MODEL IS COMING FROM
+#HAVE THE STANDARD DEVIATION FOR THE LEVEL BE A VARIABLE 
 #Reading the data and assigning the flow per gate
 lateralflow <- read.csv("inputs/lateral_acre_flow.csv")
 lateralflow <- merge(lateralflow, gcid[, c("LATID", "NUM_GATES_COL_COUNT")], by="LATID")
 lateralflow$FLOW_PER_GATE <- lateralflow$WATER_DELIVERED_AF/lateralflow$NUM_GATES_COL_COUNT
+
+
+#Drawing on the Distribution 
+Gmean<-mean(flowdfl$G)
+Gsd<-sd(flowdfl$G)
+Hmean<-mean(flowdfl$H)
+Hsd<-sd(flowdfl$H)
+
+#Coefficient of Variation
+coefofvar<-.25
+
+#Reading the data and assigning the flow per gate
+lateralflow <- read.csv("inputs/lateral_acre_flow.csv")
+lateralflow$WATER_DELIVERED_AF
+
+#Number of Simulations 
+nsim<-1000
+
+#Take the mean, the head has to be 20% larger, anything lower would be tossed. 
+#Have a mean from
+#Have a second mean to draw.
+
+for (j in 1:length(lateralflow$LATID)){
+  #Save the "lateral_acre_flow" column G as the "target flow" for each lateral.
+  total_water_delivered<-lateralflow$WATER_DELIVERED_AF[j]
+  #Randomize the "t" variable, have it be a number between 6 and 12.
+  #choose a combination of g, h, and t from the probability distribution.
+  gDraw <- rnorm(1,mean=Gmean,sd=Gsd)
+  hDraw <- rnorm(1,mean=Hmean,sd=Hsd)
+  tDraw <- runif(1, 6, 12)
+  
+  # we can add the ability to call different functions here, but for now just equation #1
+  atrue <- modelcoef[[1]] # assume the mean is the true value
+  #astdv <- abs(coefofvar*modelcoef[[1]])
+  #anorm <- rnorm(nsim, modelcoef[[1]], astdv) # samples around true value, creating error
+  
+  btrue <- modelcoef[[2]]
+  #bstdv <- abs(coefofvar*modelcoef[[2]])
+  #bnorm <- rnorm(nsim, modelcoef[[2]], bstdv)
+                 
+  ctrue <- modelcoef[[3]]
+  #cstdv <- abs(coefofvar*modelcoef[[3]])
+  #cnorm <- rnorm(nsim, modelcoef[[3]], cstdv)
+  
+  dtrue <- modelcoef[[4]]
+  #dstdv <- abs(coefofvar*modelcoef[[4]])
+  #dnorm <- rnorm(nsim, modelcoef[[4]], dstdv)
+  
+  etrue <- modelcoef[[5]]
+  #estdv <- abs(coefofvar*modelcoef[[5]])
+  #enorm <- rnorm(nsim, modelcoef[[5]], estdv)
+  
+  aatrue <- modelcoef[[6]]
+  #aastdv <- abs(coefofvar*modelcoef[[6]])
+  #aanorm <- rnorm(nsim, modelcoef[[6]], aastdv)
+  
+  bbtrue <- modelcoef[[7]]
+  #bbstdv <- abs(coefofvar*modelcoef[[7]])
+  #bbnorm <- rnorm(nsim, modelcoef[[7]], bbstdv)
+  
+  cctrue <- modelcoef[[8]]
+  #ccstdv <- abs(coefofvar*modelcoef[[8]])
+  #ccnorm <- rnorm(nsim, modelcoef[[8]], ccstdv)
+  
+  ddtrue <- modelcoef[[9]]
+  #ddstdv <- abs(coefofvar*modelcoef[[9]])
+  #ddnorm <- rnorm(nsim, modelcoef[[9]], ddstdv)
+  
+  flowtruth <-vol<- vector()
+  totalModeledFlow<-0
+  i<-1
+   while(totalModeledFlow<total_water_delivered[j]){
+    # we can adj the ability to call different functions here, but for now just equation #1
+    flowtruth[i] <- ( atrue + btrue * guniform[i] + ctrue * guniform[i] ^ 2 + dtrue * guniform[i] ^ 3 + etrue * log( huniform[i] ) ) / ( 1 + aatrue * guniform[i] +  bbtrue * log( huniform[i] ) + cctrue * ( log( huniform[i] ) ) ^ 2 + ddtrue * ( log( huniform[i] ) ) ^ 3 ) 
+    
+    
+    vol[i] <- flowtruth[i]* tuniform[i]
+    totalModeledFlow<-totalModeledFlow+vol[i]
+    i = i+1
+    print(totalModeledFlow)
+   }
+  hsd<-sd(huniform[1:i])
+  gsd<-sd(guniform[1:i])
+  tsd<-sd(tuniform[1:i])
+  
+  
+#6.2
+#Set the number of Monte Carlo Runs
+nsim <- 1000
+
+# There was a note here about updating column names, not sure if that is a To-Do item?
+#This is the second piece of input data. This data is a csv table that has the number of laterals and gates in the system. This data was extracted from GIS data (shapefiles) and put in a table.
+gcid <- read.csv("inputs/gcid_lateral_gates.csv")
+
+
+lateralflow <- merge(lateralflow, gcid[, c("LATID", "NUM_GATES_COL_COUNT")], by="LATID")
+lateralflow$FLOW_PER_GATE <- lateralflow$WATER_DELIVERED_AF/lateralflow$NUM_GATES_COL_COUNT
+#From observation there are a maximum of 72 gates for a single lateral.
+maxgates <- 72
+maxlaterals <- nrow(gcid)
+
+#Setting up the network data frame
+network_gatetype_gcid <- data.frame(matrix(NA, nrow=maxgates, ncol=maxlaterals))
+rownames(network_gatetype_gcid) <- paste0("G", 1:maxgates)
+colnames(network_gatetype_gcid) <- gcid$LATID
+network_gatetype_gcid[,] <- 1 # assume they all are gatetype=1 (this is allowing there to potential be more than one gate size although right now we don't have that)
+
+# Creating a cumulative vector for each lateral
+network_numgates_gcid <- network_gatetype_gcid
+network_numgates_gcid[,] <- NA
+for(i in 1:maxlaterals){
+  for(j in 1:gcid[i,"NUM_GATES_COL_COUNT"]){
+    network_numgates_gcid[j,i] <- j + gcid[i, "UPSTREAM_GATE_COUNT"] # j is the gate count on the branch and gcid[i, "UPSTREAM_GATE_COUNT"] is the parent gates
+  }
+}
+#6.3
+latlvl <- read.csv("inputs/lateral_levels_longformat.csv")
+
+#6.4
+
+#TODO: Figure out why some code is commented out of loops
+
+# construct the cases using the data from lateral 48-1 and 22-1.
+# CASE I: Stable lateral, LATID=48-1
+mean(latlvl[latlvl$LATID=="48-1", "VALUE"])
+sd(latlvl[latlvl$LATID=="48-1", "VALUE"])
+max(latlvl[latlvl$LATID=="48-1", "VALUE"]) - min(latlvl[latlvl$LATID=="48-1", "VALUE"])
+
+# CASE II: Chaotic lateral, LATID=22-1
+mean(latlvl[latlvl$LATID=="22-1", "VALUE"])
+sd(latlvl[latlvl$LATID=="22-1", "VALUE"])
+max(latlvl[latlvl$LATID=="22-1", "VALUE"]) - min(latlvl[latlvl$LATID=="22-1", "VALUE"])
+
+# disregard LATID = 21-4 for now
+
+network_hsd_gcid_case1 <- network_hsd_gcid_case2 <- network_gatetype_gcid
+network_hsd_gcid_case1[,] <- network_hsd_gcid_case2[,] <- NA
+for(i in 1:maxlaterals){
+  for(j in 1:maxgates){ # this 0.01 value will have to be tweaked after running this a few times. for now just adjing the normalized standard deviation to the gate standard deviations. 
+    
+    #Combine the two standard deviations using sdt = sqrt(sd1^2 + sd2^2)
+    network_hsd_gcid_case1[j,i] <- ((0.01*network_numgates_gcid[j,i])^2 + (sd(latlvl[latlvl$LATID=="48-1", "VALUE"])/mean(latlvl[latlvl$LATID=="48-1", "VALUE"])*1)^2)^0.5
+    network_hsd_gcid_case2[j,i] <- ((0.01*network_numgates_gcid[j,i])^2 + (sd(latlvl[latlvl$LATID=="22-1", "VALUE"])/mean(latlvl[latlvl$LATID=="22-1", "VALUE"])*1)^2)^0.5
+  }
+}
+
+# construct a run for each case, and each scenario. scenario A is for 6% error (0.02 coefofvar) and scenario B is for 12% error (0.05 coefoffar). I want to change 0.05 to 0.06 I think.
+
+networkresult_gcid_case1A <- networkresult_gcid_case2A <- networkresult_gcid_case1B <- networkresult_gcid_case2B <- replicate(n=maxlaterals, expr=list())
+for(l in 1:maxlaterals){
+  for(g in 1:maxgates){
+    di <- network_gatetype_gcid[g, l]
+    # CASE I (stable lateral), SCENARIO A (new, accurate)
+    hsdn <- network_hsd_gcid_case1[g, l]
+    networkresult_gcid_case1A[[l]][[g]] <- operationalerrorsim(dataindex=di, coefofvar=0.02, optflowerrorp=0.06, gsd=0.1, hsd=hsdn, tsd=0.25)
+    # # CASE II (chaotic lateral), SCENARIO A (new, accurate)
+    hsdn <- network_hsd_gcid_case2[g, l]
+    networkresult_gcid_case2A[[l]][[g]] <- operationalerrorsim(dataindex=di, coefofvar=0.02, optflowerrorp=0.06, gsd=0.1, hsd=hsdn, tsd=0.25)
+    # # CASE I (stable lateral), SCENARIO B (old, less accurate)
+    hsdn <- network_hsd_gcid_case1[g, l]
+    networkresult_gcid_case1B[[l]][[g]] <- operationalerrorsim(dataindex=di, coefofvar=0.05, optflowerrorp=0.10, gsd=0.1, hsd=hsdn, tsd=0.25)
+    # # CASE II (chaotic lateral), SCENARIO B (old, less accurate)
+    hsdn <- network_hsd_gcid_case2[g, l]
+    networkresult_gcid_case2B[[l]][[g]] <- operationalerrorsim(dataindex=di, coefofvar=0.05, optflowerrorp=0.10, gsd=0.1, hsd=hsdn, tsd=0.25)
+  }
+}
 
 network_disaggregated_flow <- function(data, casenum, scenario){
   # first let's put the results in a dataframe to calculate the percentage of error at each gate
@@ -1202,6 +1354,8 @@ network_disaggregated_flow_1A <- network_disaggregated_flow(networkresult_gcid_c
  network_disaggregated_flow_2A <- network_disaggregated_flow(networkresult_gcid_case2A, "2", "A")
  network_disaggregated_flow_1B <- network_disaggregated_flow(networkresult_gcid_case1B, "1", "B")
  network_disaggregated_flow_2B <- network_disaggregated_flow(networkresult_gcid_case2B, "2", "B")
+
+
 ```
 
 
