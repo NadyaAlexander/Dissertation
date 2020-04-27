@@ -61,6 +61,7 @@ ngates <- 1 #length(flowdf) #PM Comment: assigns 1 to ngates
 library(reshape2) 
 library(dplyr)
 library(tidyr)
+library(data.table)
 
 flowdfl <- gather(na.omit(flowdf), "G", "flow", 2:ncol(flowdf)) %>% 
   mutate(G = as.numeric(G))
@@ -1189,8 +1190,8 @@ network_disaggregated_flow_1A <- network_disaggregated_flow(networkresult_gcid_c
 
 ```
 
-
-```{r Test Code}
+#New Section 7.1
+```{r}
 
 
 # This data set is from field measurements showing the water level at the head of the lateral canal for three different laterals. The model doesn't need to directly follow this data, it just provides some example variance. At this point, though, this data is used in the next chunk of code to determine the baseline hsd.
@@ -1396,7 +1397,7 @@ gatedata_long_ml<-gatedata_long[gatedata_long$LATID%in%laterals,]
 #Run loop
 networkresult_gcid_volume <- list()
 network_all<-list()
-for(h in 1:nsim){
+for(h in 1:10){
 
   for(j in 1:nrow(gatedata_long_ml)){
     di <- gatedata_long_ml$gatetype[j]
@@ -1405,6 +1406,7 @@ for(h in 1:nsim){
      result<-data.frame(volumeerrorsim(dataindex=di, coefofvar=0.02, optflowerrorp=0.06, gsd=0.1, hsd=hsdn, tsd=0.25, totalvolume = totalvolumen))
     result$LATID<-gatedata_long_ml$LATID[j]
     result$GATENUM<-gatedata_long_ml$GATENUM[j]
+    result$FLOWERRORP <- result$FLOWERROR/result$FLOWTRUTH
     networkresult_gcid_volume[[j]]<-result
     print(j)
   }
@@ -1412,104 +1414,84 @@ for(h in 1:nsim){
   gcid_results <-rbindlist(networkresult_gcid_volume)
 
   #Summarise the run
-  loopResult<-gcid_results%>%group_by(LATID)%>%summarise(FLOWERROR=mean(FLOWERROR,na.rm=T),
+  loopResult<-gcid_results
+
+  network_all[[h]]<-loopResult
+  print(paste0("H-",h))
+}
+
+#EXAMPLE Plots
+plotData<-rbindlist(network_all)
+
+
+plotData_final<-plotData%>%group_by(LATID,GATENUM)%>%summarise(FLOWERROR=mean(abs(FLOWERROR),na.rm=T),
                                            VOLTRUTH=sum(VOLTRUTH,na.rm=T),
                                             hsd=sqrt(sum(hSDvec^2)),
                                             tsd=sqrt(sum(tSDvec^2)),
                                             gsd=sqrt(sum(gSDvec^2)))
 
-  network_all[[h]]<-loopResult
-  print(h)
-}
-########END OF CODE
-
-
-
-
-
-network_disaggregated_flow <- function(data, casenum, scenario){
-  # first let's put the results in a dataframe to calculate the percentage of error at each gate
-  
-  gcid_results <- data.frame(do.call(rbind, unlist(networkresult_gcid_volume, recursive=FALSE, use.names = TRUE)))
-  gcid_results$LATNUM <- rep(1:maxlaterals, times=1, each=maxgates*nsim) # for plotting on the x axis
-  gcid_results$GATENUM <- rep(1:maxgates, times=maxlaterals, each=nsim) # for plotting on the y axis
-  gcid_results$LATID <- colnames(network_gatetype_gcid)[gcid_results$LATNUM]
-  gcid_results$GATEID <- rownames(network_gatetype_gcid)[gcid_results$GATENUM]
-  gcid_results$FLOWERRORP <- gcid_results$FLOWERROR/gcid_results$FLOWTRUTH
-  
-  # aggregate the mean error percentage 
-  gcid_mean_flowerrorp <- aggregate(FLOWERRORP~LATNUM+LATID+GATENUM+GATEID, data=gcid_results, FUN=mean, na.rm=TRUE)
-  colnames(gcid_mean_flowerrorp)[5] <- "MEANFLOWERRORPERCENT"
-  
-  lateralflow <- merge(lateralflow, gcid_mean_flowerrorp, by="LATID")
-  lateralflow$FLOWERROR_PER_GATE <- lateralflow$FLOW_PER_GATE*lateralflow$MEANFLOWERRORPERCENT
-  write.csv(lateralflow, paste0("outputs/lateral_flow_disaggregate_uniformly_C", casenum, "S", scenario, ".csv"))
-  return(lateralflow)
-}
-
-
-
-
-
-#####END OF WORKING CODE SO FAR
-# construct a run for each case, and each scenario. scenario A is for 6% error (0.02 coefofvar) and scenario B is for 12% error (0.05 coefoffar). I want to change 0.05 to 0.06 I think.
-#Have a 
-blankFrame<-data.frame(FLOWTRUTH=NA,
-                       FLOWSIM=NA,
-                       FLOWERROR=NA,
-                       OPTFLOW=NA,
-                       ERRORCONDITION=NA,
-                       VOLTRUTH=NA,
-                       VOLSIM=NA,
-                       VOLERROR=NA,
-                       OPTVOL=NA,
-                       VOLERRORCONDITION=NA,
-                       gSDvec=NA,
-                       hSDvec=NA,
-                       tSDvec=NA
-                       )
-#Reading the data and assigning the flow per gate
-lateralflow <- read.csv("inputs/lateral_acre_flow.csv")
-lateralflow <- merge(lateralflow, gcid[, c("LATID", "NUM_GATES_COL_COUNT")], by="LATID")
-lateralflow$FLOW_PER_GATE <- lateralflow$WATER_DELIVERED_AF/lateralflow$NUM_GATES_COL_COUNT
-
-network_disaggregated_flow <- function(data, casenum, scenario){
-  # first let's put the results in a dataframe to calculate the percentage of error at each gate
-  gcid_results <- data.frame(do.call(rbind, unlist(data, recursive=FALSE, use.names = TRUE)))
-  gcid_results$LATNUM <- rep(1:maxlaterals, times=1, each=maxgates*nsim) # for plotting on the x axis
-  gcid_results$GATENUM <- rep(1:maxgates, times=maxlaterals, each=nsim) # for plotting on the y axis
-  gcid_results$LATID <- colnames(network_gatetype_gcid)[gcid_results$LATNUM]
-  gcid_results$GATEID <- rownames(network_gatetype_gcid)[gcid_results$GATENUM]
-  gcid_results$FLOWERRORP <- gcid_results$FLOWERROR/gcid_results$FLOWTRUTH
-  
-  # aggregate the mean error percentage 
-  gcid_mean_flowerrorp <- aggregate(FLOWERRORP~LATNUM+LATID+GATENUM+GATEID, data=gcid_results, FUN=mean, na.rm=TRUE)
-  colnames(gcid_mean_flowerrorp)[5] <- "MEANFLOWERRORPERCENT"
-  
-  lateralflow <- merge(lateralflow, gcid_mean_flowerrorp, by="LATID")
-  lateralflow$FLOWERROR_PER_GATE <- lateralflow$FLOW_PER_GATE*lateralflow$MEANFLOWERRORPERCENT
-  write.csv(lateralflow, paste0("outputs/lateral_flow_disaggregate_uniformly_C", casenum, "S", scenario, ".csv"))
-  return(lateralflow)
-}
-
-network_disaggregated_flow_1A <- network_disaggregated_flow(networkresult_gcid_case1A, "1", "A")
- network_disaggregated_flow_2A <- network_disaggregated_flow(networkresult_gcid_case2A, "2", "A")
- network_disaggregated_flow_1B <- network_disaggregated_flow(networkresult_gcid_case1B, "1", "B")
- network_disaggregated_flow_2B <- network_disaggregated_flow(networkresult_gcid_case2B, "2", "B")
-
- 
- 
- ##########
-
-
-
+library(ggplot2)
+ggplot(plotData_final, aes(x=LATID, y=GATENUM, size=FLOWERROR, fill=FLOWERROR))+ 
+    geom_point(shape = 21)+
+    scale_fill_distiller(palette = "Spectral")+
+    labs(fill = "Mean \nAbsolute \nFlow Error \n(cfs)", size="Mean \nAbsolute \nFlow Error \n(cfs)")+
+    xlab("Lateral No.") + 
+    ylab("Gate No.")+ theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
 
 
 ```
 
 
-#8 Experimenting with Error Propegation
+#8 New Section Experimenting with Error Propegation
+
+
+So, what I would like to do is write this code in a kind of "dummy" version, where I just choose some inputs, and then those inputs will change once I run the flow simulations.
+
+The goal of this model is to run the model as it exists with two changes. One change is to create a "stable" and "chaotic" lateral scheme. The idea is that some laterals have water levels that fluctuate, and some do not. It's based on the geometry, if there are any long crested weirs, and how deliveries are run. So for the stable lateral we can pick an initial USL sd of, say, 0.2 ft. For the chaotic lateral let's pick 0.5 ft. That is what I'm calling the "initial" USL sd. Then, I also want to have an USL sd that increases as we move down the lateral. This will be a function of how many gates are upstream of a given gate.
+
+Calculating that is a couple steps, but not too complicated I think. In the input "gcid_lateral_gates.csv" all the laterals are laid out. There are two columns that apply here. The values in column "L" are for how many gates are upstream of each lateral. This is because the laterals branch off each other. Column "C", that you don't need to use here, shows which lateral is the "parent" of each sub-lateral. So I counted the gates above the junction for each lateral, and that's column "L". The other column you need to use is column "H". Column "H" shows how many gates there are along the lateral in question. So, to calculate the USL sd for each gate in the system, we would need to combine the initial USL sd with (USL per gate)*(number of upstream gates). I believe these numbers are combined by taking the square root of the sum of the squares? For the stable lateral, let's have USL_sd_ngates = 0.01/gate and for the chaotic lateral let's try 0.05/gate. That might be too much, but let's start there.
+
+```{r}
+
+
+
+#Set the number of Monte Carlo Runs
+nsim <- 1000
+#Sum of Squares Function
+ssd <- function(x) sum((x-mean(x))^2)
+# There was a note here about updating column names, not sure if that is a To-Do item?
+#This is the second piece of input data. This data is a csv table that has the number of laterals and gates in the system. This data was extracted from GIS data (shapefiles) and put in a table.
+gcid <- read.csv("inputs/gcid_lateral_gates.csv")
+
+#From observation there are a maximum of 72 gates for a single lateral.
+maxgates <- 72
+maxlaterals <- nrow(gcid)
+
+#Setting up the network data frame
+network_gatetype_gcid <- data.frame(matrix(NA, nrow=maxgates, ncol=maxlaterals))
+rownames(network_gatetype_gcid) <- paste0("G", 1:maxgates)
+colnames(network_gatetype_gcid) <- gcid$LATID
+network_gatetype_gcid[,] <- 1 # assume they all are gatetype=1 (this is allowing there to potential be more than one gate size although right now we don't have that)
+
+# Creating a cumulative vector for each lateral
+network_numgates_gcid <- network_gatetype_gcid
+network_numgates_gcid[,] <- NA
+for(i in 1:maxlaterals){
+  for(j in 1:gcid[i,"NUM_GATES_COL_COUNT"]){
+    network_numgates_gcid[j,i] <- j + gcid[i, "UPSTREAM_GATE_COUNT"] # j is the gate count on the branch and gcid[i, "UPSTREAM_GATE_COUNT"] is the parent gates
+  }
+}
+
+#For the stable lateral, let's have USL_sd_ngates = 0.01/gate and for the chaotic lateral let's try 0.05/gate. That #might be too much, but let's start there.
+
+#Pick Initial SD
+stableLat<-0.2
+chaoticLat<-0.5
+```
+
+
+#8 Old Experimenting with Error Propegation
 
 This section should probably be dropped and re-written from scratch. It had tons of lines of plots I already stripped out. The idea here was to be able to tweak the network model to change how much the hsd changed per gate location (i.e., number of upstream gates) or per behavior type (chaotic versus stable). The changes per gate location are called "alpha" and the changes per behavior type are called "beta"
 
