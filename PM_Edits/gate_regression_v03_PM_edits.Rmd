@@ -1553,8 +1553,12 @@ gatedata_long$USL_sd_ngates[i]<-ssd(c(.2,rep(.2,gatedata_long$UpstreamGates[i]))
 gatedata_long$UCL_sd_ngates[i]<-ssd(c(.5,rep(.5,gatedata_long$UpstreamGates[i])))
 }
 
-
-
+sectionEightGateDataUSL<-list()
+sectionEightGateDataUCL<-list()
+for (i in 1:nrow(gatedata_long)){
+sectionEightGateDataUCL[[i]]<-operationalerrorsim(dataindex=di, coefofvar=0.05, optflowerrorp=0.10, gsd=0.1, hsd=gatedata_long$UCL_sd_ngates[i], tsd=0.25)
+sectionEightGateDataUSL[[i]]<-operationalerrorsim(dataindex=di, coefofvar=0.05, optflowerrorp=0.10, gsd=0.1, hsd=gatedata_long$USL_sd_ngates[i], tsd=0.25)
+print(i)}
 
 
 ```
