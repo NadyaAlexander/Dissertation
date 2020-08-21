@@ -1306,7 +1306,7 @@ I have included a spreadsheet with a rough cut of the different flows through di
 
 #Set the number of Monte Carlo Runs
 nsim <- 1000 #<------Set the number of Monte Carlo Runs for drawing errors
-nruns<-100  #<------Set the number of total loops to run 
+nruns<-10  #<------Set the number of total loops to run 
 #Sum of Squares Function
 ssd <- function(x) sqrt(sum(x*x))  #<------How sd's are combined 
 
@@ -1527,14 +1527,14 @@ for(h in 1:nruns){
   #print(paste0("H-",h))
 }
 
-#Combine results
+#Combine results using the sqrt of the sum of squares for the sds and mean flow error
 plotData<-rbindlist(network_all)
 plotData_final<-plotData%>%group_by(LATID,GATENUM)%>%summarise(FLOWERROR=mean(abs(FLOWERROR),na.rm=T),
-                                           VOLTRUTH=sum(VOLTRUTH,na.rm=T),
                                             hsd=sqrt(sum(hSDvec^2)),
                                             tsd=sqrt(sum(tSDvec^2)),
                                             gsd=sqrt(sum(gSDvec^2)))
 
+#Plot the results n
 library(ggplot2)
 section7chart<-ggplot(plotData_final, aes(x=LATID, y=GATENUM, size=FLOWERROR, fill=FLOWERROR))+ 
     geom_point(shape = 21)+
@@ -1544,7 +1544,9 @@ section7chart<-ggplot(plotData_final, aes(x=LATID, y=GATENUM, size=FLOWERROR, fi
     ylab("Gate No.")+ theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
 
-print(section7chart)
+png(paste0('outputs/gcid_section7.png'), width=20, height=8, units="in", pointsize=8, res=300)#<----need to set the chart name
+    plot(section7chart)
+    print(section7chart)
 ```
 
 
@@ -1559,7 +1561,10 @@ Calculating that is a couple steps, but not too complicated I think. In the inpu
 ```{r section_8_errror_prop}
 
 #Set the number of Monte Carlo Runs
-nsim <- 1000 #<-------set the number of runs
+nsim <- 1000 #<------Set the number of Monte Carlo Runs for drawing errors
+nruns<-100  #<------Set the number of total loops to run 
+#Sum of Squares Function
+ssd <- function(x) sqrt(sum(x*x))  #<------How sd's are combined 
 
 #This is the second piece of input data. This data is a csv table that has the number of laterals and gates in the system. This data was extracted from GIS data (shapefiles) and put in a table.
 gcid <- read.csv("inputs/gcid_lateral_gates.csv")
