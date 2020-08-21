@@ -10,8 +10,8 @@ editor_options:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, eval=TRUE, warning = FALSE)
-setwd("/Users/TheVault/Desktop/GateWork/Dissertation/PM_Edits") #<-----set the working drive
+knitr::opts_chunk$set(echo = TRUE, eval=TRUE, warning = FALSE,tidy.opts=list(width.cutoff=80), tidy=TRUE)
+setwd("/Users/TheVault/Desktop/Upwork/Dissertation/PM_Edits") #<-----set the working drive
 ```
 
 #Introduction.
@@ -51,7 +51,8 @@ The code should, mostly, be running. The programmer I was working with was able 
 
 #There is other data that is brought in later in the model, that data is to show how many lateral canals and gates there are in the system.
 
-flowdf <- read.csv("/Users/TheVault/Desktop/GateWork/Dissertation/inputs/armco_gate18.csv", header = TRUE, check.names = FALSE, fileEncoding="UTF-8-BOM") #PM Comment: Reads in data, header checks sets the first row as column names, check.names allows for numeric column names
+flowdf <- read.csv("/Users/TheVault/Desktop/Upwork/Dissertation/inputs/armco_gate18.csv", header = TRUE, check.names = FALSE, fileEncoding="UTF-8-BOM") #PM Comment: Reads in data, header checks sets the first 
+# row as column names, check.names allows for numeric column names
 
 ngates <- 1 #length(flowdf) #<-----assign a number to ngates
 ```
@@ -69,7 +70,8 @@ flowdfl <- gather(na.omit(flowdf), "G", "flow", 2:ncol(flowdf)) %>%
   #mutate(G = group_indices()) %>% 
   #select(-G_val)
 
-#PM Comment: removes NA cells from flow data frame (na.omit), takes column names and shifts them into rows (gather), changes G to a number instead of a string(mutate)
+#PM Comment: removes NA cells from flow data frame (na.omit), takes column names and shifts them into
+# rows (gather), changes G to a number instead of a string(mutate)
 
 # to take a look do this
 head(flowdfl)
@@ -109,7 +111,6 @@ modelcoef <- list(a =	0.228970726,
 formulastring <- list()
 formulastring[[1]] <- ( a + b * flowdfl$G + c * flowdfl$G ^ 2 + d * flowdfl$G ^ 3 + e * log( flowdfl$H ) ) / ( 1 + aa * flowdfl$G +  bb * log( flowdfl$H ) + cc * ( log( flowdfl$H ) ) ^ 2 + dd * ( log( flowdfl$H ) ) ^ 3 )
 
-#PM Comment:Not sure if you want the above objects to be referenced here or applied with the following formula, as it stands R thinks a, is an independent object, where as it is written it is contained in the list. 
 ```
 
 
@@ -152,8 +153,8 @@ formulastring[[1]] <- ( a + b * flowdfl$G + c * flowdfl$G ^ 2 + d * flowdfl$G ^ 
       #mtext(paste("Y =", round(lmmod$coefficients[2],3), "X +", round(lmmod$coefficients[1],0)), side=3, line=1, cex=0.8, adj=0.1)
       #mtext(paste("Model bR2:", round(t(modelstats[[di]][[m]])[18],3)), side=3, line=0.3, cex=0.8, adj=0.1)
   
-    dev.off()
-    
+    dev.print()
+    ######
 ```
 
 # 4 Uncertainty from Flow Table Equation
@@ -183,7 +184,7 @@ The purpose of this section of code is to assign uncertainty to the equation its
 
 # the number of Monte-Carlo loops
 nsim <- 1000 #<----set number of simulations
-set.seed(19320928)  #<----set randomization
+set.seed(19320928)  #<----set randomization seed
 
 # optflowerrorp is the percent of error allowed, like 6%, 12%
 equationerrorsim <- function(dataindex, coefofvar, optflowerrorp){
@@ -273,12 +274,12 @@ for(i in 1:length(cvrange)){
     mtext(paste0("Coefficient of Variation: ", cvrange[i]), side=3, line=0)
     #legend("bottomleft", c("Optimal", "Error"), pch=c(19,19), col=c("steelblue1", "red"), inset=c(0.02,0.02), cex=0.8, bg="grey96")
   dev.off()
-     ######Code for R Markdown Display, Can be Deleted
-      par(mar=c(4,4,2,1)+0.1)
+    ######Code for R Markdown Display, Can be Deleted
+    par(mar=c(4,4,2,1)+0.1)
     plot(optresult[[i]][, "FLOWERROR"], optresult[[i]][, "FLOWTRUTH"], col=c("red", "steelblue1")[optresult[[i]][, "ERRORCONDITION"]+1], pch=19, xlab="Error in Flow (cfs)", ylab="True Flow(cfs)")
     mtext(paste0("Coefficient of Variation: ", cvrange[i]), side=3, line=0)
     #legend("bottomleft", c("Optimal", "Error"), pch=c(19,19), col=c("steelblue1", "red"), inset=c(0.02,0.02), cex=0.8, bg="grey96")
-    dev.off()
+    dev.print()
 }
 
 png('outputs/optfn_equation_error.png', width=4.5, height=4, units="in", pointsize=8, res=1200)
@@ -360,7 +361,6 @@ operationalerrorsim <- function(dataindex, coefofvar=0.02, optflowerrorp=0.06, g
   
   volsim <- voltruth <-  flowsim <- flowtruth <- vector()
   
-  
   for(i in 1:nsim){
     # we can adj the ability to call different functions here, but for now just equation #1
     flowsim[i] <- ( anorm[i] + bnorm[i] * gnorm[i] + cnorm[i] * gnorm[i] ^ 2 + dnorm[i] * gnorm[i] ^ 3 + enorm[i] * log( hnorm[i] ) ) / ( 1 + aanorm[i] * gnorm[i] +  bbnorm[i] * log( hnorm[i] ) + ccnorm[i] * ( log( hnorm[i] ) ) ^ 2 + ddnorm[i] * ( log( hnorm[i] ) ) ^ 3 )
@@ -403,9 +403,9 @@ dev.off()
   ######Code for R Markdown Display, Can be Deleted
   plot(operationresult[, "FLOWERROR"], operationresult[, "FLOWTRUTH"], col=c("red", "steelblue1")[operationresult[, "ERRORCONDITION"]+1], pch=19, xlab="Error in Flow (cfs)", ylab="True Flow(cfs)")
   mtext(paste0("Coefficient of Variation of Equation Parameters: 0.01"), side=3, line=0)
-  legend("topleft", c("Optimal", "Error"), pch=c(19,19), col=c("steelblue1", "red"), inset=c(0.02,0.02), cex=0.8, bg="grey96")
-dev.off()
-
+  legend("topleft", c("Optimal", "Error"), pch=c(19,19), col=c("steelblue1", "red"), inset=c(0.02,0.02),       cex=0.8, bg="grey96")
+    dev.print()
+    #####
 # This graphs looks weird because it uses the error conditional for flow, but displays volume
 # I tried making an error conditional for volume, but it didn't work as I inititally expected, and I wasn't sure how much this really mattered so I stopped working on it quickly. If it is a concern we can keep working on it.
 png('outputs/operational_volume_error/optimization_cloud.png', width=4.5, height=4, units="in", pointsize=8, res=1200)
@@ -418,8 +418,9 @@ dev.off()
   par(mar=c(4,4,2,1)+0.1)
   plot(operationresult[, "VOLERROR"], operationresult[, "VOLTRUTH"], col=c("red", "steelblue1")[operationresult[, "ERRORCONDITION"]+1], pch=19, xlab="Error in Volume (cf)", ylab="True Volume (cf)")
   mtext(paste0("Coefficient of Variation of Equation Parameters: 0.01"), side=3, line=0)
-  legend("topleft", c("Optimal", "Error"), pch=c(19,19), col=c("steelblue1", "red"), inset=c(0.02,0.02), cex=0.8, bg="grey96")
-dev.off()
+  legend("topleft", c("Optimal", "Error"), pch=c(19,19), col=c("steelblue1", "red"), inset=c(0.02,0.02),      cex=0.8, bg="grey96")
+   dev.print()
+   #####
 ```
 
 ## 5.3 Sensitivity Analysis -- uncertaintiy with varying parameters one at a time
@@ -529,15 +530,18 @@ g_plot<-ggplot()+geom_point(data=G_Plot_Data,aes(x=Gsd,y=VOLERROR))+ labs(
 
 ggsave(filename ="gPlot.png", #Save the file with the some options
        plot=g_plot, #R object to be saved
-       path="/Users/TheVault/Desktop/GateWork/Dissertation/PM_Edits/outputs/sensitivity_analysis_pm/", #Path to directory where it should be saved
+       path="/Users/TheVault/Desktop/Upwork/Dissertation/PM_Edits/outputs/sensitivity_analysis_pm/", #Path to directory where it should be saved
       device="png", #type of saved file
       width=6.5, 
       height=5, 
       units="in") #units in inches
 
   ######Code for R Markdown Display, Can be Deleted
-print(g_plot)
-
+  print("sensitivity_analysis_pm_G_plot")
+  print(g_plot)
+  #####
+  
+  
 #H Sd
 plotList_Hsd<-list() #Repeat aboue code, but with different variables
 Hlist<-seq(0,1,1/30)
@@ -556,14 +560,17 @@ H_plot<-ggplot()+geom_point(data=H_Plot_Data,aes(x=Hsd,y=VOLERROR))+ labs(
 
 ggsave(filename ="hPlot.png",
        plot=H_plot,
-       path="/Users/TheVault/Desktop/GateWork/Dissertation/PM_Edits/outputs/sensitivity_analysis_pm/",
+       path="/Users/TheVault/Desktop/Upwork/Dissertation/PM_Edits/outputs/sensitivity_analysis_pm/",
       device="png",
       width=6.5,
       height=5, 
       units="in")
-  ######Code for R Markdown Display, Can be Deleted
-print(H_plot)
 
+  ######Code for R Markdown Display, Can be Deleted
+  print("sensitivity_analysis_pm_H_plot")
+  print(H_plot)
+  #####
+  
 #T Sd
 plotList_Tsd<-list()
 Tlist<-seq(0,1,1/30)
@@ -582,15 +589,17 @@ T_plot<-ggplot()+geom_point(data=T_Plot_Data,aes(x=Tsd,y=VOLERROR))+ labs(
 
 ggsave(filename ="tPlot.png",
        plot=T_plot,
-       path="/Users/TheVault/Desktop/GateWork/Dissertation/PM_Edits/outputs/sensitivity_analysis_pm/",
+       path="/Users/TheVault/Desktop/Upwork/Dissertation/PM_Edits/outputs/sensitivity_analysis_pm/",
       device="png",
       width=6.5,
       height=5, 
       units="in")
 
   ######Code for R Markdown Display, Can be Deleted
-print(T_plot)
-
+  print("sensitivity_analysis_pm_T_plot")
+  print(T_plot)
+  ##### 
+  
 #CV
 plotList_cv<-list()
 cvlist<-seq(0,1,1/30)
@@ -609,14 +618,16 @@ cv_plot<-ggplot()+geom_point(data=cv_Plot_Data,aes(x=cv,y=VOLERROR))+ labs(
 
 ggsave(filename ="cvPlot.png",
        plot=cv_plot,
-       path="/Users/TheVault/Desktop/GateWork/Dissertation/PM_Edits/outputs/sensitivity_analysis_pm/",
+       path="/Users/TheVault/Desktop/Upwork/Dissertation/PM_Edits/outputs/sensitivity_analysis_pm/",
       device="png",
       width=6.5,
       height=5, 
       units="in")
 
   ######Code for R Markdown Display, Can be Deleted
-print(cv_plot)
+  print("sensitivity_analysis_pm_T_plot")
+  print(cv_plot)
+  #####
 
 #Line Plots
 #GSD Line Plot
@@ -635,14 +646,17 @@ g_plot_line<-ggplot()+geom_line(data=GplotData_line,aes(x=Gsd,y=meanErr))+
 
 ggsave(filename ="gPlot_line.png",
        plot=g_plot_line,
-       path="/Users/TheVault/Desktop/GateWork/Dissertation/PM_Edits/outputs/sensitivity_analysis_pm/",
+       path="/Users/TheVault/Desktop/Upwork/Dissertation/PM_Edits/outputs/sensitivity_analysis_pm/",
       device="png",
       width=6.5,
       height=5, 
       units="in")
 
   ######Code for R Markdown Display, Can be Deleted
-print(g_plot_line)
+  print("sensitivity_analysis_pm_gPlot_line")
+  print(g_plot_line)
+  #####
+  
 
 #HSD Line Plot
 H_Plot_DataAbs<-do.call(rbind,plotList_Hsd)
@@ -660,15 +674,16 @@ H_plot_line<-ggplot()+geom_line(data=HplotData_line,aes(x=Hsd,y=meanErr),alpha=.
 
 ggsave(filename ="hPlot_line.png",
        plot=H_plot_line,
-       path="/Users/TheVault/Desktop/GateWork/Dissertation/PM_Edits/outputs/sensitivity_analysis_pm/",
+       path="/Users/TheVault/Desktop/Upwork/Dissertation/PM_Edits/outputs/sensitivity_analysis_pm/",
       device="png",
       width=6.5,
       height=5, 
       units="in")
 
   ######Code for R Markdown Display, Can be Deleted
-print(H_plot_line)
-
+  print("sensitivity_analysis_pm_HPlot_line")
+  print(H_plot_line)
+  #####
 
 #TSd line plot
 T_Plot_DataAbs<-do.call(rbind,plotList_Tsd)
@@ -687,15 +702,17 @@ T_plot_line<-ggplot()+geom_line(data=TplotData_line,aes(x=Tsd,y=meanErr))+
 
 ggsave(filename ="tPlot_line.png",
        plot=T_plot_line,
-       path="/Users/TheVault/Desktop/GateWork/Dissertation/PM_Edits/outputs/sensitivity_analysis_pm/",
+       path="/Users/TheVault/Desktop/Upwork/Dissertation/PM_Edits/outputs/sensitivity_analysis_pm/",
       device="png",
       width=6.5,
       height=5, 
       units="in")
 
   ######Code for R Markdown Display, Can be Deleted
-print(T_plot_line)
-
+  print("sensitivity_analysis_pm_TPlot_line")
+  print(T_plot_line)
+  #####
+  
 #CV Plot
 cv_Plot_DataAbs<-do.call(rbind,plotList_cv)
 cv_Plot_DataAbs$VOLERROR<-abs(cv_Plot_DataAbs$VOLERROR)
@@ -712,14 +729,15 @@ cv_plot_line<-ggplot()+geom_line(data=CVplotData_line,aes(x=cv,y=meanErr))+
 
 ggsave(filename ="cvPlot_line.png",
        plot=cv_plot_line,
-       path="/Users/TheVault/Desktop/GateWork/Dissertation/PM_Edits/outputs/sensitivity_analysis_pm/",
+       path="/Users/TheVault/Desktop/Upwork/Dissertation/PM_Edits/outputs/sensitivity_analysis_pm/",
       device="png",
       width=6.5,
       height=5, 
       units="in")
 
   ######Code for R Markdown Display, Can be Deleted
-print(cv_plot_line)
+  print("sensitivity_analysis_pm_cvPlot_line")
+  print(cv_plot_line)
 ```
 
 #Old Code
@@ -1057,7 +1075,7 @@ nsim <- 1000
 
 # There was a note here about updating column names, not sure if that is a To-Do item?
 #This is the second piece of input data. This data is a csv table that has the number of laterals and gates in the system. This data was extracted from GIS data (shapefiles) and put in a table.
-gcid <- read.csv("/Users/TheVault/Desktop/GateWork/Dissertation/PM_Edits/inputs/gcid_lateral_gates.csv")
+gcid <- read.csv("/Users/TheVault/Desktop/Upwork/Dissertation/PM_Edits/inputs/gcid_lateral_gates.csv")
 
 #From observation there are a maximum of 72 gates for a single lateral.
 maxgates <- 72
@@ -1088,7 +1106,7 @@ The second component is the gate-dependent hsd. This is the portion that increas
 ```{r gate_upstreamlvl_uncertainty_gcid}
 # This data set is from field measurements showing the water level at the head of the lateral canal for three different laterals. The model doesn't need to directly follow this data, it just provides some example variance. At this point, though, this data is used in the next chunk of code to determine the baseline hsd.
 
-latlvl <- read.csv("/Users/TheVault/Desktop/GateWork/Dissertation/PM_Edits/inputs/lateral_levels_longformat.csv")
+latlvl <- read.csv("/Users/TheVault/Desktop/Upwork/Dissertation/PM_Edits/inputs/lateral_levels_longformat.csv")
 
 # These are then plotted.
 png('outputs/lat_levels_density_48-1.png', width=6.5, height=4, units="in", pointsize=8, res=300) 
@@ -1302,7 +1320,7 @@ This section of the code reads in the amount of flow that passes through each ga
 ## 7.1 Disaggregateing the results and calculating statistics.
 ```{r Old Code}
 #Reading the data and assigning the flow per gate
-lateralflow <- read.csv("/Users/TheVault/Desktop/GateWork/Dissertation/PM_Edits/inputs/lateral_acre_flow.csv")
+lateralflow <- read.csv("/Users/TheVault/Desktop/Upwork/Dissertation/PM_Edits/inputs/lateral_acre_flow.csv")
 lateralflow <- merge(lateralflow, gcid[, c("LATID", "NUM_GATES_COL_COUNT")], by="LATID")
 lateralflow$FLOW_PER_GATE <- lateralflow$WATER_DELIVERED_AF/lateralflow$NUM_GATES_COL_COUNT
 
@@ -1351,7 +1369,7 @@ ssd <- function(x) sqrt(sum(x*x))
 # There was a note here about updating column names, not sure if that is a To-Do item?
 
 #This is the second piece of input data. This data is a csv table that has the number of laterals and gates in the system. This data was extracted from GIS data (shapefiles) and put in a table.
-gcid <- read.csv("/Users/TheVault/Desktop/GateWork/Dissertation/PM_Edits/inputs/gcid_lateral_gates.csv")
+gcid <- read.csv("/Users/TheVault/Desktop/Upwork/Dissertation/PM_Edits/inputs/gcid_lateral_gates.csv")
 
 #From observation there are a maximum of 72 gates for a single lateral.
 maxgates <- 72
@@ -1373,7 +1391,7 @@ for(i in 1:maxlaterals){
 }
 
 ##Get Data from LatLVL
-latlvl <- read.csv("/Users/TheVault/Desktop/GateWork/Dissertation/PM_Edits/inputs/lateral_levels_longformat.csv")
+latlvl <- read.csv("/Users/TheVault/Desktop/Upwork/Dissertation/PM_Edits/inputs/lateral_levels_longformat.csv")
 network_hsd_gcid_case1 <- network_hsd_gcid_case2 <- network_gatetype_gcid
 network_hsd_gcid_case1[,] <- network_hsd_gcid_case2[,] <- NA
 
@@ -1482,7 +1500,7 @@ volumeerrorsim <- function(dataindex, coefofvar=0.02, optflowerrorp=0.06, gsd=0.
   }
 
 #Reading the data and assigning the flow per gate
-lateralflow <- read.csv("/Users/TheVault/Desktop/GateWork/Dissertation/PM_Edits/inputs/lateral_acre_flow.csv")
+lateralflow <- read.csv("/Users/TheVault/Desktop/Upwork/Dissertation/PM_Edits/inputs/lateral_acre_flow.csv")
 totalGatesGCID<-gcid%>%group_by(PARENT)%>%summarise(NUM_GATES_COL_COUNT=sum(NUM_GATES_COL_COUNT))
 colnames(totalGatesGCID)[1]<-"LATID"
 lateralflow <- merge(lateralflow, totalGatesGCID[, c("LATID", "NUM_GATES_COL_COUNT")], by="LATID",all=T)
@@ -1500,10 +1518,11 @@ GateNames[177:182]<-" ESC"
 for(i in 1:ncol(network_volumepergate_gcid)){
   #Put the average flow per gate
   network_volumepergate_gcid[!is.na(network_volumepergate_gcid[,i]),i]<-lateralflow$FLOW_PER_GATE[grep(GateNames[i],lateralflow$LATID)]
-  print(i)
+  #print(i)
 }  
 
-# construct a run for each case, and each scenario. scenario A is for 6% error (0.02 coefofvar) and scenario B is for 12% error (0.05 coefoffar). I want to change 0.05 to 0.06 I think.
+# construct a run for each case, and each scenario. scenario A is for 6% error (0.02 coefofvar) and scenario B is for 12% error (0.05 coefoffar). 
+# I want to change 0.05 to 0.06 I think.
 #NumGates
 numgates<-melt(network_numgates_gcid)
 colnames(numgates)[1]<-"LATID"
@@ -1554,7 +1573,7 @@ for(h in 1:10){
     result$GATENUM<-gatedata_long_ml$GATENUM[j]
     result$FLOWERRORP <- result$FLOWERROR/result$FLOWTRUTH
     networkresult_gcid_volume[[j]]<-result
-    print(j)
+    #print(j)
   }
 
   gcid_results <-rbindlist(networkresult_gcid_volume)
@@ -1563,7 +1582,7 @@ for(h in 1:10){
   loopResult<-gcid_results
 
   network_all[[h]]<-loopResult
-  print(paste0("H-",h))
+  #print(paste0("H-",h))
 }
 
 #EXAMPLE Plots
@@ -1591,21 +1610,20 @@ print(section7chart)
 
 #8 New Section Experimenting with Error Propegation
 
-
 So, what I would like to do is write this code in a kind of "dummy" version, where I just choose some inputs, and then those inputs will change once I run the flow simulations.
 
 The goal of this model is to run the model as it exists with two changes. One change is to create a "stable" and "chaotic" lateral scheme. The idea is that some laterals have water levels that fluctuate, and some do not. It's based on the geometry, if there are any long crested weirs, and how deliveries are run. So for the stable lateral we can pick an initial USL sd of, say, 0.2 ft. For the chaotic lateral let's pick 0.5 ft. That is what I'm calling the "initial" USL sd. Then, I also want to have an USL sd that increases as we move down the lateral. This will be a function of how many gates are upstream of a given gate.
 
 Calculating that is a couple steps, but not too complicated I think. In the input "gcid_lateral_gates.csv" all the laterals are laid out. There are two columns that apply here. The values in column "L" are for how many gates are upstream of each lateral. This is because the laterals branch off each other. Column "C", that you don't need to use here, shows which lateral is the "parent" of each sub-lateral. So I counted the gates above the junction for each lateral, and that's column "L". The other column you need to use is column "H". Column "H" shows how many gates there are along the lateral in question. So, to calculate the USL sd for each gate in the system, we would need to combine the initial USL sd with (USL per gate)*(number of upstream gates). I believe these numbers are combined by taking the square root of the sum of the squares? For the stable lateral, let's have USL_sd_ngates = 0.01/gate and for the chaotic lateral let's try 0.05/gate. That might be too much, but let's start there.
 
-```{r}
+```{r errror_prop}
 
 #Set the number of Monte Carlo Runs
 nsim <- 1000
 
 # There was a note here about updating column names, not sure if that is a To-Do item?
 #This is the second piece of input data. This data is a csv table that has the number of laterals and gates in the system. This data was extracted from GIS data (shapefiles) and put in a table.
-gcid <- read.csv("/Users/TheVault/Desktop/GateWork/Dissertation/PM_Edits/inputs/gcid_lateral_gates.csv")
+gcid <- read.csv("/Users/TheVault/Desktop/Upwork/Dissertation/PM_Edits/inputs/gcid_lateral_gates.csv")
 
 #From observation there are a maximum of 72 gates for a single lateral.
 maxgates <- 72
@@ -1627,7 +1645,7 @@ for(i in 1:maxlaterals){
 }
 
 ##Get Data from LatLVL
-latlvl <- read.csv("/Users/TheVault/Desktop/GateWork/Dissertation/PM_Edits/inputs/lateral_levels_longformat.csv")
+latlvl <- read.csv("/Users/TheVault/Desktop/Upwork/Dissertation/PM_Edits/inputs/lateral_levels_longformat.csv")
 network_hsd_gcid_case1 <- network_hsd_gcid_case2 <- network_gatetype_gcid
 network_hsd_gcid_case1[,] <- network_hsd_gcid_case2[,] <- NA
 
@@ -1641,8 +1659,10 @@ for(i in 1:maxlaterals){
 
 
 #Reading the data and assigning the flow per gate
-lateralflow <- read.csv("inputs/lateral_acre_flow.csv")
-lateralflow <- merge(lateralflow, gcid[, c("LATID", "NUM_GATES_COL_COUNT")], by="LATID")
+lateralflow <- read.csv("/Users/TheVault/Desktop/Upwork/Dissertation/PM_Edits/inputs/lateral_acre_flow.csv")
+totalGatesGCID<-gcid%>%group_by(PARENT)%>%summarise(NUM_GATES_COL_COUNT=sum(NUM_GATES_COL_COUNT))
+colnames(totalGatesGCID)[1]<-"LATID"
+lateralflow <- merge(lateralflow, totalGatesGCID[, c("LATID", "NUM_GATES_COL_COUNT")], by="LATID",all=T)
 lateralflow$FLOW_PER_GATE <- lateralflow$WATER_DELIVERED_AF/lateralflow$NUM_GATES_COL_COUNT
 
 #Set Up Per Gate Water Limits in the needed structre
@@ -1710,17 +1730,13 @@ sectionEightGateDataUSL[[i]]<-operationalerrorsim(dataindex=di, coefofvar=0.05, 
 
 ```
 
-#add in sub laterals 
-
-#add in null sublaterals 
-
 
 #8 Old Experimenting with Error Propegation
 
 This section should probably be dropped and re-written from scratch. It had tons of lines of plots I already stripped out. The idea here was to be able to tweak the network model to change how much the hsd changed per gate location (i.e., number of upstream gates) or per behavior type (chaotic versus stable). The changes per gate location are called "alpha" and the changes per behavior type are called "beta"
 
 The code below was written to posit multiple scenarios at once, because my original programmer wanted to just run it once and have all the results. But that makes it more challenging for me to try to edit it / run it. So what I would like to do here is have a section where I can change those two aspects once, and then run it for different scenarios. I don't need to be able to run multiple scenarios at the same time, the man hours to run this code are not that big.
-```{r all_netwrok_model_by+alpha_beta}
+```{r all_netwrok_model_by+alpha_beta, eval=FALSE}
 
 #I kept the calculations in this section, but deleted the plots. The idea here was to add one more dimension to the 4 scenarios above, by changing the way error propegates down the canal. This wasn't leading to results that meant anything, so when we get to this step, we may end up changing the methods. That's part of why I stripped the plots. So this code may all be tossed in favor of something new.
 
